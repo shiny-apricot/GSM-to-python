@@ -29,10 +29,10 @@ class Modeling:
     def run(self, 
             data_x: pd.DataFrame,
             data_y: pd.Series,
-            target_column: str,
-            feature_column: str,
-            feature_ranks: pd.Series,
-            group_ranks: pd.Series):
+            target_column,
+            feature_column,
+            feature_ranks,
+            group_ranks):
         """
         Run the modeling process.
 

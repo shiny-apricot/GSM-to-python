@@ -71,7 +71,7 @@ class GSM_Pipeline:
             )
             self.logger.info(f"Iteration {i} for gsm_main_loop completed.")
 
-        self.write_output()
+        self.write_output_to_file()
         self.visualize_results()
 
         self.logger.info("GSM pipeline completed successfully.")
@@ -84,6 +84,7 @@ class GSM_Pipeline:
                       grouper: Grouping, 
                       scorer: Scoring, 
                       modeler: Modeling):
+        assert self.preliminary_checks(data)
         # Perform the main loop of the GSM pipeline
         data_sampled = self.sample_by_ratio(sample_ratio, data)
         # Split the data
@@ -101,7 +102,8 @@ class GSM_Pipeline:
         pass
     
     def preliminary_checks(self, data) -> pd.DataFrame:
-        # Perform preliminary checks on the files, and the project environment
+        # Perform preliminary checks on the files, and the project environment.
+        # return error message if there is a problem
         return pd.DataFrame()
 
     def load_data(self, data):
@@ -147,21 +149,22 @@ class GSM_Pipeline:
                                         group_data, 
                                         grouper: Grouping,
                                         scorer: Scoring,
-                                        modeler: Modeling
+                                        modeling: Modeling
                                         ):
         label_data = data_x["label"]
         feature_group_mapping = grouper.run_grouping(group_data, data_x, label_data)
-        predictions = scorer.run_scoring(data_x, model, feature_group_mapping)
-        modeler.run(data_x=data_x,
+        scores = scorer.run_scoring(data_x, model, feature_group_mapping)
+        results = modeling.run(data_x=data_x,
                     data_y=data_y,
                     target_column="label",
                     feature_column="feature",
                     feature_ranks=feature_group_mapping,
-                    group_ranks=predictions)
-
+                    group_ranks=scores)
+        self.write_output_to_file()
+        self.visualize_results()
         pass
     
-    def write_output(self):
+    def write_output_to_file(self):
         pass
     
     def visualize_results(self):
