@@ -1,9 +1,7 @@
-
-
 from utils.logger import Logger
 from grouping.input_loader import load_input_file, load_group_file
 from scoring.metrics import calculate_metrics
-from data_processing.DataPreprocessor import DataPreprocessor
+from src.data_processing.data_preprocess import DataPreprocessor
 
 import pandas as pd
 import sys
@@ -11,8 +9,8 @@ import pathlib
 from typing import List, Dict, Tuple, Optional, Union, Any, Callable, Sequence, Iterable, Iterator, Set
 
 from grouping.Grouping import Grouping
-from scoring.Scoring import Scoring
-from modeling.Modeling import Modeling
+from src.scoring.run_scoring import Scoring
+from src.modeling.run_modeling import Modeling
 
 class GSM_Pipeline:
     def __init__(self, 
@@ -90,7 +88,7 @@ class GSM_Pipeline:
         # Split the data
         data_train, data_test = self.train_test_split(data_sampled)
         # Filter unimportant features
-        data_filtered_x, data_filtered_y = self.filter_unimportant_features(data_train, data_test)
+        data_filtered_x, data_filtered_y = self.apply_preliminary_filtering_to_features(data_train, data_test)
         # Apply grouping scoring modeling
         self.apply_grouping_scoring_modeling(model, 
                                              data_filtered_x,
@@ -138,7 +136,7 @@ class GSM_Pipeline:
         train_data, test_data = self.data_preprocessor.train_test_split(data)
         return train_data, test_data
     
-    def filter_unimportant_features(self, data_train, data_test):
+    def apply_preliminary_filtering_to_features(self, data_train, data_test):
         # Select relevant features
         return pd.DataFrame(), pd.DataFrame()
     
@@ -153,13 +151,14 @@ class GSM_Pipeline:
                                         ):
         label_data = data_x["label"]
         feature_group_mapping = grouper.run_grouping(group_data, data_x, label_data)
-        scores = scorer.run_scoring(data_x, model, feature_group_mapping)
-        results = modeling.run(data_x=data_x,
+        scores_of_groups = scorer.run_scoring(data_x, model, feature_group_mapping)
+        # TODO: take the best performed groups
+        results = modeling.run_modeling(data_x=data_x,
                     data_y=data_y,
                     target_column="label",
                     feature_column="feature",
                     feature_ranks=feature_group_mapping,
-                    group_ranks=scores)
+                    group_ranks=scores_of_groups)
         self.write_output_to_file()
         self.visualize_results()
         pass
