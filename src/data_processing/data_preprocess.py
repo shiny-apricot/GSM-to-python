@@ -6,12 +6,14 @@ This module handles the core data preprocessing tasks including:
 - Converting labels to binary format
 - Data normalization
 - Train/test splitting
+- Preprocessing grouping data from a .txt file
 
 Key Functions:
 - preprocess_data: Main preprocessing pipeline
 - convert_labels_to_binary: Converts class labels to 0/1
 - normalize_data: Applies normalization to features
 - validate_input_data: Validates input data structure
+- preprocess_grouping_data: Loads and preprocesses grouping data from a .txt file
 
 Usage Example:
     preprocessed_data = preprocess_data(
@@ -26,12 +28,14 @@ from typing import Tuple, Union
 import pandas as pd
 import numpy as np
 
-from src.data_processing.data_loader import load_input_file, load_group_file
-from config import LABEL_OF_NEGATIVE_CLASS, LABEL_OF_POSITIVE_CLASS
-from normalization import normalize_data
-from src.data_processing.train_test_splitter import train_test_split
+from data_processing.data_loader import load_input_file, load_group_file
+from data_processing.normalization import normalize_data
+from data_processing.train_test_splitter import train_test_split
+from data_processing.handle_missing_values import drop_missing_values, fill_missing_values
+from config import GENE_COLUMN_NAME, GROUP_COLUMN_NAME
 
-def validate_input_data(data: pd.DataFrame) -> None:
+
+def validate_input_data(data: pd.DataFrame, label_column_name: str) -> None:
     """
     Validates the structure and content of input data.
     
@@ -44,25 +48,26 @@ def validate_input_data(data: pd.DataFrame) -> None:
     if data.empty:
         raise ValueError("Input data is empty")
     
-    required_columns = ['label']
+    required_columns = ['class']
     missing_cols = [col for col in required_columns if col not in data.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
 def preprocess_data(
-    project_folder: Union[str, Path],
-    input_file_name: str,
-    group_file_name: str,
+    input_data: pd.DataFrame,
+    label_column_name:str,
+    label_of_negative_class,
+    label_of_positive_class,
+    logger,
     test_size: float = 0.2,
+    normalization_method='zscore',
     random_state: int = 42
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main preprocessing pipeline that handles all data preparation steps.
     
     Args:
-        project_folder: Path to project directory
-        input_file_name: Name of input data file
-        group_file_name: Name of group data file
+        input_data: DataFrame containing input data
         test_size: Proportion of data to use for testing
         random_state: Random seed for reproducibility
         
@@ -70,32 +75,32 @@ def preprocess_data(
         Tuple containing:
         - Preprocessed training data
         - Preprocessed test data
-        - Group data
         
     Example:
-        >>> train_data, test_data, group_data = preprocess_data(
-        ...     project_folder="project/",
-        ...     input_file_name="input.csv",
-        ...     group_file_name="groups.csv"
+        >>> train_data, test_data = preprocess_data(
+        ...     input_data=df,
+        ...     group_data=group_df
         ... )
     """
-    # Load data
-    project_folder = Path(project_folder)
-    input_data = load_input_file(project_folder, input_file_name)
-    group_data = load_group_file(project_folder, group_file_name)
-    
     # Validate
-    validate_input_data(input_data)
+    validate_input_data(input_data, label_column_name)
+    
+    # handle missing values
+    input_data = drop_missing_values(input_data)
     
     # Convert labels
     input_data = convert_labels_to_binary(
         input_data, 
-        LABEL_OF_NEGATIVE_CLASS,
-        LABEL_OF_POSITIVE_CLASS
+        label_column_name,
+        label_of_negative_class,
+        label_of_positive_class
     )
     
     # Normalize features
-    normalized_data = normalize_data(input_data)
+    normalized_data = normalize_data(input_data,
+                                     label_column_name=label_column_name,
+                                     logger=logger,
+                                     method=normalization_method)
     
     # Split data
     train_data, test_data = train_test_split(
@@ -104,12 +109,13 @@ def preprocess_data(
         random_state=random_state
     )
     
-    return train_data, test_data, group_data
+    return train_data, test_data
 
 def convert_labels_to_binary(
     data: pd.DataFrame,
-    negative_label: str = LABEL_OF_NEGATIVE_CLASS,
-    positive_label: str = LABEL_OF_POSITIVE_CLASS
+    label_column_name,
+    negative_label: str,
+    positive_label: str
 ) -> pd.DataFrame:
     """
     Converts categorical labels to binary (0/1) format.
@@ -129,14 +135,64 @@ def convert_labels_to_binary(
         0     0
         1     1
     """
-    if 'label' not in data.columns:
+    if label_column_name not in data.columns:
         raise ValueError("Data must contain 'label' column")
         
     label_map = {negative_label: 0, positive_label: 1}
-    invalid_labels = set(data['label']) - set(label_map.keys())
+    invalid_labels = set(data[label_column_name]) - set(label_map.keys())
     if invalid_labels:
         raise ValueError(f"Invalid labels found: {invalid_labels}")
         
     data = data.copy()
-    data['label'] = data['label'].map(label_map)
+    data[label_column_name] = data[label_column_name].map(label_map)
     return data
+
+   
+def sample_by_ratio(data: pd.DataFrame, ratio: float = 0.5) -> pd.DataFrame:
+    """
+    Samples a subset of the data based on a specified ratio.
+
+    Args:
+        data: Input DataFrame to sample from
+        ratio: Sampling ratio (default: 0.5)
+
+    Returns:
+        Sampled DataFrame
+
+    Example:
+        >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5]})
+        >>> sampled_df = sample_by_ratio(df, 0.5)
+    """
+    if not 0 < ratio < 1:
+        raise ValueError("Sampling ratio must be between 0 and 1")
+    sample_size = int(len(data) * ratio)
+    return data.sample(sample_size)
+
+def preprocess_grouping_data(grouping_data:pd.DataFrame, logger) -> pd.DataFrame:
+    """
+    Loads and preprocesses grouping data from a .txt file.
+
+    Args:
+        file_path: Path to the grouping data file
+
+    Returns:
+        DataFrame containing the processed grouping data
+
+    Example:
+        >>> grouping_data = preprocess_grouping_data("data/grouping_file/cancer-DisGeNET.txt")
+    """
+    try:        
+        # Validate the structure
+        if grouping_data.empty:
+            raise ValueError("Grouping data is empty")
+        
+        required_columns = [GENE_COLUMN_NAME, GROUP_COLUMN_NAME]
+        missing_cols = [col for col in required_columns if col not in grouping_data.columns]
+        if missing_cols:
+            raise ValueError(f"Missing required columns: {missing_cols}")
+
+        return grouping_data
+
+    except Exception as e:
+        logger.error(f"Error processing grouping data: {e}")
+        raise

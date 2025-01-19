@@ -12,9 +12,12 @@ import numpy as np
 from dataclasses import dataclass
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from machine_learning.classification import train_model as classify_train_model, predict
+
 from typing import Tuple, Dict, Any
 from sklearn.base import BaseEstimator
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+
 
 @dataclass
 class TrainingData:
@@ -49,11 +52,20 @@ class ModelEvaluation:
             "f1": self.f1
         }
 
+def _get_scaler(normalization_method: str):
+    """Get the appropriate scaler based on configuration"""
+    scalers = {
+        'minmax': MinMaxScaler(),
+        'zscore': StandardScaler(),
+        'robust': RobustScaler()
+    }
+    return scalers.get(normalization_method, StandardScaler())
+
 def prepare_data(
     data: pd.DataFrame,
     target_column: str,
-    test_size: float = 0.2,
-    random_state: int = 42
+    test_size: float,
+    random_state: int
 ) -> TrainingData:
     """
     Prepare and split the dataset into training and testing sets.
@@ -72,7 +84,7 @@ def prepare_data(
     
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
-        test_size=test_size,
+        test_size=1 - test_size,  # Convert train ratio to test ratio
         random_state=random_state,
         stratify=y if len(y.unique()) < 10 else None
     )
@@ -81,10 +93,11 @@ def prepare_data(
 
 def preprocess_features(
     X_train: pd.DataFrame,
-    X_test: pd.DataFrame
+    X_test: pd.DataFrame,
+    NORMALIZATION_METHOD,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Preprocess features using standardization.
+    Preprocess features using configured normalization method.
     
     Args:
         X_train: Training features
@@ -93,7 +106,8 @@ def preprocess_features(
     Returns:
         Tuple of preprocessed (X_train, X_test)
     """
-    scaler = StandardScaler()
+    scaler = _get_scaler(NORMALIZATION_METHOD)
+    
     X_train_scaled = pd.DataFrame(
         scaler.fit_transform(X_train),
         columns=X_train.columns,
@@ -108,7 +122,8 @@ def preprocess_features(
 
 def train_model(
     model: BaseEstimator,
-    training_data: TrainingData
+    training_data: TrainingData,
+    HYPERPARAMETERS
 ) -> BaseEstimator:
     """
     Train a machine learning model with the given data.
@@ -120,8 +135,14 @@ def train_model(
     Returns:
         Trained model
     """
-    model.fit(training_data.X_train, training_data.y_train)
-    return model
+    # Configure model hyperparameters if available
+    if hasattr(model, 'get_params'):
+        model_name = model.__class__.__name__
+        if model_name in HYPERPARAMETERS:
+            model.set_params(**HYPERPARAMETERS[model_name])
+    
+    # Use the classification module's train_model function
+    return classify_train_model(model, training_data)
 
 def evaluate_model(
     model: BaseEstimator,
@@ -139,19 +160,24 @@ def evaluate_model(
     """
     y_pred = model.predict(training_data.X_test)
     
+    # Use weighted average for multi-class problems, binary for binary classification
+    average = 'weighted' if len(np.unique(training_data.y_test)) > 2 else 'binary'
+    
     return ModelEvaluation(
         accuracy=accuracy_score(training_data.y_test, y_pred),
-        precision=precision_score(training_data.y_test, y_pred, average='weighted'),
-        recall=recall_score(training_data.y_test, y_pred, average='weighted'),
-        f1=f1_score(training_data.y_test, y_pred, average='weighted')
+        precision=precision_score(training_data.y_test, y_pred, average=average),
+        recall=recall_score(training_data.y_test, y_pred, average=average),
+        f1=f1_score(training_data.y_test, y_pred, average=average)
     )
 
 def run_training_pipeline(
     model: BaseEstimator,
     data: pd.DataFrame,
     target_column: str,
-    test_size: float = 0.2,
-    random_state: int = 42
+    test_size: float,
+    random_state: int,
+    HYPERPARAMETERS,
+    NORMALIZATION_METHOD
 ) -> Tuple[BaseEstimator, ModelEvaluation]:
     """
     Run the complete training pipeline including data preparation,
@@ -161,8 +187,8 @@ def run_training_pipeline(
         model: Scikit-learn model instance
         data: Input DataFrame
         target_column: Name of target column
-        test_size: Test set proportion
-        random_state: Random seed
+        test_size: Test set proportion (from config)
+        random_state: Random seed (from config)
     
     Returns:
         Tuple of (trained_model, evaluation_metrics)
@@ -185,7 +211,8 @@ def run_training_pipeline(
     training_data = prepare_data(data, target_column, test_size, random_state)
     X_train_processed, X_test_processed = preprocess_features(
         training_data.X_train, 
-        training_data.X_test
+        training_data.X_test,
+        NORMALIZATION_METHOD
     )
     
     # Update training data with processed features
@@ -193,7 +220,7 @@ def run_training_pipeline(
     training_data.X_test = X_test_processed
     
     # Train and evaluate model
-    trained_model = train_model(model, training_data)
+    trained_model = train_model(model, training_data, HYPERPARAMETERS)
     evaluation = evaluate_model(trained_model, training_data)
     
     return trained_model, evaluation

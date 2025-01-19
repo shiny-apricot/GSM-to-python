@@ -6,15 +6,16 @@ This module contains dataclass definitions that represent:
 - Grouped data structures
 - Results from the grouping process
 """
+
 from dataclasses import dataclass
 from typing import Dict, List
 import pandas as pd
 
 @dataclass
-class FeatureGroupMapping:
+class GroupFeatureMapping:
     """Maps features to their corresponding groups"""
-    feature_name: str
     group_name: str
+    feature_list: List[str]
 
 @dataclass
 class GroupData:
@@ -27,4 +28,4 @@ class GroupData:
 class GroupingResult:
     """Contains all results from the grouping process"""
     grouped_data: Dict[str, GroupData]
-    feature_mappings: List[FeatureGroupMapping] 
+    feature_mappings: List[GroupFeatureMapping] 

@@ -13,9 +13,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.impute import SimpleImputer
-import logging
 
-logger = logging.getLogger(__name__)
 
 def validate_data(data: pd.DataFrame) -> Tuple[bool, str]:
     """
@@ -70,10 +68,10 @@ def handle_missing_values(
 
 def preprocess_features(
     data: pd.DataFrame,
+    logger,
     numeric_columns: Optional[List[str]] = None,
     categorical_columns: Optional[List[str]] = None,
     scaler_type: str = 'standard',
-    handle_nulls: bool = True
 ) -> pd.DataFrame:
     """
     Preprocess features by scaling numeric columns and encoding categorical ones.
@@ -98,10 +96,6 @@ def preprocess_features(
     
     # Create copy to avoid modifying original data
     processed_data = data.copy()
-    
-    # Handle missing values if requested
-    if handle_nulls:
-        processed_data = handle_missing_values(processed_data)
     
     # Identify column types if not provided
     if numeric_columns is None:

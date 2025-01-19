@@ -15,14 +15,11 @@ Key Functions:
 
 import numpy as np
 import pandas as pd
+from statsmodels.stats.multitest import multipletests
 from scipy import stats
 from typing import Tuple, Union
 from dataclasses import dataclass
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from config import INITIAL_FILTER_SIZE, BEST_GROUPS_TO_KEEP, MIN_VARIANCE_THRESHOLD, SELECTION_METHOD
 
 @dataclass
 class TTestResults:
@@ -35,6 +32,7 @@ class TTestResults:
 def perform_ttest(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
+    logger,
     equal_var: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -82,7 +80,8 @@ def perform_ttest(
 
 def adjust_pvalues(
     pvalues: np.ndarray,
-    method: str = 'fdr_bh'
+    logger,
+    method: str = 'fdr_bh',
 ) -> np.ndarray:
     """
     Apply multiple testing correction to p-values.
@@ -95,7 +94,8 @@ def adjust_pvalues(
         Array of adjusted p-values
     """
     try:
-        return stats.multipletests(pvalues, method=method)[1]
+        adjusted_pvalues = multipletests(pvalues, method=method)[1]
+        return adjusted_pvalues
     except Exception as e:
         logger.error(f"Error in adjust_pvalues: {str(e)}")
         raise
@@ -103,6 +103,7 @@ def adjust_pvalues(
 def filter_by_pvalue(
     X: Union[np.ndarray, pd.DataFrame],
     pvalues: np.ndarray,
+    logger,
     threshold: float = 0.05,
     feature_names: Union[np.ndarray, list] = None
 ) -> TTestResults:
@@ -120,7 +121,7 @@ def filter_by_pvalue(
     """
     try:
         # Adjust p-values for multiple testing
-        adjusted_pvals = adjust_pvalues(pvalues)
+        adjusted_pvals = adjust_pvalues(pvalues, logger=logger)
         
         # Select features meeting threshold
         selected_mask = adjusted_pvals < threshold
@@ -146,6 +147,7 @@ def filter_by_pvalue(
 def select_features(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
+    logger,
     threshold: float = 0.05,
     feature_names: Union[np.ndarray, list] = None,
     equal_var: bool = False
@@ -165,13 +167,14 @@ def select_features(
     """
     try:
         # Perform t-test
-        t_stats, p_vals = perform_ttest(X, y, equal_var=equal_var)
+        t_stats, p_vals = perform_ttest(X, y, equal_var=equal_var, logger=logger)
         
         # Filter features
         results = filter_by_pvalue(
             X, p_vals, 
             threshold=threshold,
-            feature_names=feature_names
+            feature_names=feature_names,
+            logger=logger
         )
         
         return results

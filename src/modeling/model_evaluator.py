@@ -18,7 +18,6 @@ Key Functions:
 """
 
 from typing import Dict, Tuple, Optional, List
-import logging
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -27,13 +26,11 @@ from sklearn.metrics import (
     matthews_corrcoef, balanced_accuracy_score, confusion_matrix
 )
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
 def evaluate_model(
     model: BaseEstimator,
     X_test: pd.DataFrame,
     y_test: pd.Series,
+    logger,
     return_proba: bool = True
 ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
@@ -69,7 +66,8 @@ def evaluate_model(
 def calculate_metrics(
     y_true: pd.Series,
     y_pred: np.ndarray,
-    y_pred_proba: Optional[np.ndarray] = None
+    logger,
+    y_pred_proba: Optional[np.ndarray] = None,
 ) -> Dict[str, float]:
     """
     Calculate comprehensive classification performance metrics.
@@ -120,6 +118,7 @@ def calculate_metrics(
 def update_feature_ranks(
     current_ranks: pd.DataFrame,
     feature_scores: pd.Series,
+    logger,
     method: str = 'mean',
     weights: Optional[List[float]] = None
 ) -> pd.DataFrame:
@@ -161,6 +160,7 @@ def update_feature_ranks(
 
 def calculate_confidence_scores(
     y_pred_proba: np.ndarray,
+    logger,
     threshold: float = 0.5
 ) -> Dict[str, float]:
     """

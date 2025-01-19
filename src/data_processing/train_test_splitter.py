@@ -34,7 +34,7 @@ def validate_split_params(
 ) -> None:
     """Validate parameters for data splitting."""
     if not isinstance(data, pd.DataFrame):
-        raise TypeError("Data must be a pandas DataFrame")
+        raise TypeError(f"Data must be a pandas DataFrame, current type: {type(data)}")
     
     if target_column not in data.columns:
         raise ValueError(f"Target column '{target_column}' not found in data")

@@ -5,11 +5,13 @@ from sklearn.base import BaseEstimator
 from .model_trainer import train_model
 from .model_evaluator import evaluate_model, calculate_metrics, update_feature_ranks
 from .modeling_utils import preprocess_features, filter_best_groups
+from machine_learning.classification import train_model, predict
+
 
 def run_modeling(
     data_x: pd.DataFrame,
     data_y: pd.Series,
-    model: BaseEstimator,
+    model_name: str,
     feature_ranks: pd.DataFrame = None,
     group_ranks: pd.DataFrame = None
 ) -> Tuple[BaseEstimator, Dict[str, float], pd.DataFrame, pd.DataFrame]:
@@ -35,7 +37,7 @@ def run_modeling(
     
     # Train model
     trained_model, X_train, y_train, X_test, y_test = train_model(
-        model=model,
+        model=model_name,
         data_x=processed_x,
         data_y=data_y
     )

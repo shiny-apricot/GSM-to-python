@@ -1,172 +1,87 @@
-from utils.logger import Logger
-from grouping.input_loader import load_input_file, load_group_file
-from scoring.metrics import calculate_metrics
-from src.data_processing.data_preprocess import DataPreprocessor
+from utils import logger
+from config import (INPUT_EXPRESSION_DATA, INPUT_GROUP_DATA, OUTPUT_DIR, 
+                     RANDOM_SEED, CROSS_VALIDATION_FOLDS, NUMBER_OF_ITERATIONS, 
+                     SAVE_INTERMEDIATE_RESULTS, TRAIN_TEST_SPLIT_RATIO, MODEL_NAME, LABEL_COLUMN_NAME, NORMALIZATION_METHOD,
+                     CLASS_LABELS_NEGATIVE, CLASS_LABELS_POSITIVE)
 
 import pandas as pd
-import sys
-import pathlib
-from typing import List, Dict, Tuple, Optional, Union, Any, Callable, Sequence, Iterable, Iterator, Set
 
-from grouping.Grouping import Grouping
-from src.scoring.run_scoring import Scoring
-from src.modeling.run_modeling import Modeling
-
-class GSM_Pipeline:
-    def __init__(self, 
-                 input_file, 
-                 group_file, 
-                 data_preprocessor: DataPreprocessor, 
-                 model,
-                 logger: Logger,
-                 project_folder: pathlib.Path,
-                 output_folder: pathlib.Path,
-                 notebook_mode: bool = False,
-                 ):
-        # Initialize instance variables
-        self.input_file = input_file
-        self.group_file = group_file
-        self.model = model
-        self.data_preprocessor = data_preprocessor
-        self.logger = logger
-        self.notebook_mode = notebook_mode
-        self.project_folder = project_folder
-        self.output_folder = output_folder
-        
-        if self.logger is None:
-            self.logger = Logger("GSM_Pipeline")
-        
-        self.data = None
-        self.groups = None
-        pass
-    
-    def gsm_run(self, 
-                data: pd.DataFrame, 
-                sample_ratio: float, 
-                n_iteration_workflow: int, 
-                model, 
-                grouper: Grouping, 
-                scorer: Scoring, 
-                modeler: Modeling,
-                data_preprocessor: DataPreprocessor,
-                ):
-        # Run the GSM pipeline
-        data_checked = self.preliminary_checks(data)
-        data_loaded = self.load_data(data_checked)
-        data_preprocessed = self.preprocess_data(data_preprocessor=data_preprocessor, 
-                                                 data=data_loaded)
-        data_normalized = self.normalize_data(data_preprocessed)
-        
-        for i in range(n_iteration_workflow):    
-            self.logger.info(f"Iteration {i} for gsm_main_loop started...")
-            self.gsm_main_loop(
-                data_normalized,
-                model,
-                sample_ratio,
-                grouper,
-                scorer,
-                modeler,
-            )
-            self.logger.info(f"Iteration {i} for gsm_main_loop completed.")
-
-        self.write_output_to_file()
-        self.visualize_results()
-
-        self.logger.info("GSM pipeline completed successfully.")
-        pass
-        
-    def gsm_main_loop(self, 
-                      data, 
-                      model, 
-                      sample_ratio, 
-                      grouper: Grouping, 
-                      scorer: Scoring, 
-                      modeler: Modeling):
-        assert self.preliminary_checks(data)
-        # Perform the main loop of the GSM pipeline
-        data_sampled = self.sample_by_ratio(sample_ratio, data)
-        # Split the data
-        data_train, data_test = self.train_test_split(data_sampled)
-        # Filter unimportant features
-        data_filtered_x, data_filtered_y = self.apply_preliminary_filtering_to_features(data_train, data_test)
-        # Apply grouping scoring modeling
-        self.apply_grouping_scoring_modeling(model, 
-                                             data_filtered_x,
-                                             data_filtered_y,
-                                             self.groups, 
-                                             grouper, 
-                                             scorer, 
-                                             modeler)
-        pass
-    
-    def preliminary_checks(self, data) -> pd.DataFrame:
-        # Perform preliminary checks on the files, and the project environment.
-        # return error message if there is a problem
-        return pd.DataFrame()
-
-    def load_data(self, data):
-        # Load data from input file
-        self.data = load_input_file(self.project_folder, self.input_file)
-        self.groups = load_group_file(self.project_folder, self.group_file)
-        pass
-
-    def preprocess_data(self, 
-                        data_preprocessor: DataPreprocessor, 
-                        data
-                        ) -> pd.DataFrame:
-        # Preprocess data (e.g., handle missing values, normalize)
-        self.preprocessed_data = data_preprocessor.convert_labels_to_binary(data)
-        return self.preprocessed_data
-    
-    def normalize_data(self, data):
-        # Normalize data
-        self.normalized_data = self.data_preprocessor.normalize_data(data)
-        return self.normalized_data
-
-    def evaluate_model(self, model, data):
-        # Evaluate the trained model
-        pass
-    
-    def sample_by_ratio(self, data, sample_ratio) -> pd.DataFrame:
-        # Sample data based on a specified ratio
-        return pd.DataFrame()
-    
-    def train_test_split(self, data) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        # Split data into training and testing sets
-        train_data, test_data = self.data_preprocessor.train_test_split(data)
-        return train_data, test_data
-    
-    def apply_preliminary_filtering_to_features(self, data_train, data_test):
-        # Select relevant features
-        return pd.DataFrame(), pd.DataFrame()
-    
-    def apply_grouping_scoring_modeling(self, 
-                                        model, 
-                                        data_x,
-                                        data_y, 
-                                        group_data, 
-                                        grouper: Grouping,
-                                        scorer: Scoring,
-                                        modeling: Modeling
-                                        ):
-        label_data = data_x["label"]
-        feature_group_mapping = grouper.run_grouping(group_data, data_x, label_data)
-        scores_of_groups = scorer.run_scoring(data_x, model, feature_group_mapping)
-        # TODO: take the best performed groups
-        results = modeling.run_modeling(data_x=data_x,
-                    data_y=data_y,
-                    target_column="label",
-                    feature_column="feature",
-                    feature_ranks=feature_group_mapping,
-                    group_ranks=scores_of_groups)
-        self.write_output_to_file()
-        self.visualize_results()
-        pass
-    
-    def write_output_to_file(self):
-        pass
-    
-    def visualize_results(self):
-        pass
+from grouping.run_grouping import run_grouping
+from scoring.run_scoring import run_scoring
+from modeling.run_modeling import run_modeling
+from data_processing.data_loader import load_input_file, load_group_file
+from data_processing.data_preprocess import preprocess_data, preprocess_grouping_data
+from data_processing.normalization import normalize_data
+from data_processing.train_test_splitter import split_data
+from data_processing.preliminary_filtering import preliminary_filter
 
 
+def gsm_run(input_data: pd.DataFrame,
+            group_data: pd.DataFrame,
+            sample_ratio: float = TRAIN_TEST_SPLIT_RATIO,
+            n_iteration_workflow: int = NUMBER_OF_ITERATIONS,
+            model_name: str = MODEL_NAME,
+            label_column_name: str = LABEL_COLUMN_NAME,
+            normalization_method: str = NORMALIZATION_METHOD,
+            notebook_mode: bool = False,
+            ) -> None:
+    
+    logger = logger.setup_logger()
+    
+    logger.info("Starting GSM pipeline...")
+    
+    # Run the GSM pipeline
+    logger.info("Start data preprocessing.")
+    data_preprocessed_train, data_preprocessed_test = preprocess_data(input_data,
+                                        label_column_name,
+                                        logger=logger,
+                                        label_of_negative_class=CLASS_LABELS_NEGATIVE,
+                                        label_of_positive_class=CLASS_LABELS_POSITIVE,
+                                        normalization_method=normalization_method,
+                                        )
+    logger.info("Data preprocessing completed.")
+    
+    group_data_processed = preprocess_grouping_data(group_data, logger=logger)
+    logger.info("Grouping data preprocessing completed.")
+    
+    for i in range(n_iteration_workflow):    
+        logger.info(f"Iteration {i} for gsm_main_loop started...")
+        gsm_main_loop(data_preprocessed_train, group_data_processed, model_name, logger)
+        logger.info(f"Iteration {i} for gsm_main_loop completed.")
+
+    logger.info("GSM pipeline completed successfully.")
+
+def gsm_main_loop(data: pd.DataFrame, 
+                  grouping_data: pd.DataFrame,
+                  model_name: str, 
+                  logger,
+                  ) -> None:
+    logger.info("Splitting data into training and testing sets...")
+    data_train_x, data_test_x, data_train_y, data_test_y = split_data(data, LABEL_COLUMN_NAME, test_size=0.2, stratify=True)
+    logger.info("Data split completed.")
+    # Apply preliminary filter to features
+    logger.info("Applying preliminary filter to training data...")
+    filtered_train = preliminary_filter(data_train_x, data_train_y, logger=logger)
+    logger.info("Preliminary filtering completed.")
+
+    # Grouping
+    logger.info("Running grouping...")
+    grouping_result_object = run_grouping(filtered_train, grouping_data)
+    logger.info("Grouping completed.")
+
+    # Scoring
+    logger.info("Running scoring...")
+    ranked_features, ranked_groups, feature_scores = run_scoring(data_train_x, 
+                                                                 model_name, 
+                                                                 grouping_result_object.grouped_data, 
+                                                                 data_train_y)
+    logger.info("Scoring completed.")
+
+    # Modeling
+    logger.info("Running modeling...")
+    trained_model, metrics, feature_ranks, group_ranks = run_modeling(data_filtered_x, 
+                                                                      data_filtered_y, 
+                                                                      model_name, 
+                                                                      feature_ranks=ranked_features, 
+                                                                      group_ranks=ranked_groups)
+    logger.info("Modeling completed successfully.")

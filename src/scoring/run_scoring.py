@@ -14,7 +14,7 @@ from .group_scorer import score_groups
 from .metrics import rank_by_score
 
 def run_scoring(data: pd.DataFrame,
-               model: object,
+               model: str,
                groups: pd.DataFrame,
                labels: np.ndarray,
                predictions: np.ndarray) -> Tuple[List, List, Dict]:

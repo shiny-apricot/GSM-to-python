@@ -9,29 +9,29 @@ This module handles:
 Key Functions:
 - run_grouping: Main entry point that processes data and returns grouped features
 """
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import pandas as pd
+
+import config
 from .data_structures import GroupData, GroupingResult
 from .grouping_utils import create_feature_group_mapping, get_group_data
-from .input_loader import prepare_data
 
 def run_grouping(
-    main_data_path: str,
-    grouping_data_path: str,
+    main_data: pd.DataFrame,
+    grouping_data: pd.DataFrame,
     **kwargs
 ) -> GroupingResult:
     """
     Run the grouping process to organize features into their respective groups.
     
     This function:
-    1. Loads and validates input data
-    2. Creates feature-to-group mappings
-    3. Organizes features into their respective groups
-    4. Returns grouped data and mappings
+    1. Creates feature-to-group mappings
+    2. Organizes features into their respective groups
+    3. Returns grouped data and mappings
     
     Args:
-        main_data_path: Path to the main data file containing features and labels
-        grouping_data_path: Path to the grouping configuration file
+        main_data: DataFrame containing features and labels
+        grouping_data: DataFrame containing the grouping configuration
         **kwargs: Additional arguments for customizing the grouping process
             - custom_groups (List[str]): Specific groups to process
             - exclude_groups (List[str]): Groups to exclude from processing
@@ -43,16 +43,12 @@ def run_grouping(
     
     Raises:
         ValueError: If input data validation fails
-        FileNotFoundError: If input files cannot be found
     """
-    # Load and validate input data
-    main_data, grouping_data = prepare_data(main_data_path, grouping_data_path)
-    
     # Create feature-to-group mapping
     feature_mappings = create_feature_group_mapping(grouping_data)
     
     # Get unique groups, applying any filters from kwargs
-    groups = grouping_data['group_name'].unique()
+    groups = grouping_data[config.GROUP_COLUMN_NAME].unique()
     if 'custom_groups' in kwargs:
         groups = [g for g in groups if g in kwargs['custom_groups']]
     if 'exclude_groups' in kwargs:

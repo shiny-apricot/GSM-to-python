@@ -8,9 +8,11 @@ This module provides helper functions for:
 """
 from typing import List, Tuple
 import pandas as pd
-from .data_structures import FeatureGroupMapping, GroupData
 
-def create_feature_group_mapping(grouping_data: pd.DataFrame) -> List[FeatureGroupMapping]:
+from config import GROUP_COLUMN_NAME, GENE_COLUMN_NAME, LABEL_COLUMN_NAME
+from .data_structures import GroupFeatureMapping, GroupData
+
+def create_feature_group_mapping(grouping_data: pd.DataFrame) -> List[GroupFeatureMapping]:
     """
     Create feature-group mappings from input data.
 
@@ -21,18 +23,36 @@ def create_feature_group_mapping(grouping_data: pd.DataFrame) -> List[FeatureGro
     Returns:
         List of FeatureGroupMapping objects
 
+    Raises:
+        ValueError: If required columns are missing in the input DataFrame
+
     Example:
         >>> grouping_data = pd.DataFrame({
-        ...     'feature_name': ['f1', 'f2'], 
-        ...     'group_name': ['g1', 'g2']
+        ...     'gene': ['f1', 'f2'], 
+        ...     'group': ['g1', 'g2']
         ... })
         >>> mappings = create_feature_group_mapping(grouping_data)
         >>> print(mappings[0])
-        FeatureGroupMapping(feature_name='f1', group_name='g1')
+        GroupFeatureMapping(group_name='g1', feature_list=['f1'])
     """
+    # Check for required columns
+    required_columns = [GENE_COLUMN_NAME, GROUP_COLUMN_NAME]
+    for col in required_columns:
+        if col not in grouping_data.columns:
+            raise ValueError(f"Missing required column: {col}")
+
+    # Create a dictionary to hold features for each group
+    group_mapping = {}
+    for _, row in grouping_data.iterrows():
+        group_name = row[GROUP_COLUMN_NAME]
+        feature_name = row[GENE_COLUMN_NAME]
+        if group_name not in group_mapping:
+            group_mapping[group_name] = []
+        group_mapping[group_name].append(feature_name)
+
     return [
-        FeatureGroupMapping(feature_name=row['feature_name'], group_name=row['group_name'])
-        for _, row in grouping_data.iterrows()
+        GroupFeatureMapping(group_name=group_name, feature_list=features)
+        for group_name, features in group_mapping.items()
     ]
 
 def get_group_data(main_data: pd.DataFrame, 
@@ -49,4 +69,11 @@ def get_group_data(main_data: pd.DataFrame,
     Returns:
         Tuple of (features DataFrame, labels Series) for the specified group
     """
-    # ... existing implementation ... 
+    # Filter the grouping data for the specified group
+    group_features = grouping_data[grouping_data[GROUP_COLUMN_NAME] == group][GENE_COLUMN_NAME]
+    
+    # Select the relevant features from the main data
+    features = main_data[group_features].copy()
+    labels = main_data[LABEL_COLUMN_NAME]  # Assuming 'label' is the column name for labels
+
+    return features, labels 

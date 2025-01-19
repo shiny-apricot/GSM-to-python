@@ -15,15 +15,12 @@ Usage Example:
     >>> normalized = normalize_data(data, method='zscore')
 """
 
-import logging
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
-# Configure logging
-logger = logging.getLogger(__name__)
 
 def _validate_input(data: pd.DataFrame) -> None:
     """Validate input data for normalization."""
@@ -65,23 +62,22 @@ def _robust_normalize(data: pd.DataFrame) -> pd.DataFrame:
 
 def normalize_data(
     data: pd.DataFrame,
-    method: str = 'minmax',
-    subset_cols: Optional[list] = None
+    label_column_name: str,
+    logger,
+    method: str = 'zscore',
+    subset_cols: Optional[list] = None,
 ) -> pd.DataFrame:
     """
     Normalize the input data using the specified method.
 
     Args:
         data (pd.DataFrame): Input data to normalize
+        label_column_name (str): Name of the label column to exclude from normalization
         method (str): Normalization method ('minmax', 'zscore', or 'robust')
-        subset_cols (list, optional): Specific columns to normalize. If None, normalize all columns
+        subset_cols (list, optional): Specific columns to normalize. If None, normalize all columns except the label
 
     Returns:
         pd.DataFrame: Normalized data
-
-    Raises:
-        ValueError: If invalid normalization method or invalid input data
-        TypeError: If input is not a pandas DataFrame
     """
     logger.info(f"Starting data normalization using {method} method")
     
@@ -92,7 +88,10 @@ def normalize_data(
     data_to_normalize = data.copy()
     
     # Select columns to normalize
-    cols_to_normalize = subset_cols if subset_cols is not None else data.columns
+    if subset_cols is None:
+        cols_to_normalize = data.columns.difference([label_column_name])  # Exclude label column
+    else:
+        cols_to_normalize = [col for col in subset_cols if col != label_column_name]  # Exclude label column if in subset
     
     # Validate selected columns
     if not all(col in data.columns for col in cols_to_normalize):

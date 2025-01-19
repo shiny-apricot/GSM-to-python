@@ -10,17 +10,18 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 from .metrics import calculate_metrics
+from machine_learning.classification import train_model
 
 def score_features(X: pd.DataFrame, 
                   y: pd.Series, 
-                  model: object) -> Dict[str, Dict[str, float]]:
+                  model_name: str) -> Dict[str, Dict[str, float]]:
     """
     Calculate performance scores for each feature.
     
     Args:
         X: Feature matrix
         y: Target labels
-        model: Trained model object
+        model_name: Name of the model to train (e.g., 'random_forest', 'xgboost')
         
     Returns:
         Dictionary mapping feature names to their performance metrics
@@ -28,16 +29,19 @@ def score_features(X: pd.DataFrame,
     feature_scores = {}
     
     for feature in X.columns:
+        # Use single feature to get predictions
+        X_feature = X[[feature]]
+        
+        # Train the model using the specified model name
+        model = train_model(X_feature, y, model_name)
+        
         # Get feature importance or coefficient if available
         feature_importance = getattr(model, 'feature_importances_', None)
         if feature_importance is not None:
-            feature_idx = list(X.columns).index(feature)
-            importance = feature_importance[feature_idx]
+            importance = feature_importance[0]  # Since we are using one feature
         else:
             importance = 0.0
             
-        # Use single feature to get predictions
-        X_feature = X[[feature]]
         y_pred = model.predict(X_feature)
         
         # Calculate metrics
