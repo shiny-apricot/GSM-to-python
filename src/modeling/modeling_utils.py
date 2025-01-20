@@ -9,10 +9,12 @@ Key Functions:
 """
 
 from typing import List, Dict, Optional, Union, Tuple
+import logging
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.impute import SimpleImputer
+from grouping.group_feature_mapping import GroupFeatureMappingData
 
 
 def validate_data(data: pd.DataFrame) -> Tuple[bool, str]:
@@ -127,48 +129,42 @@ def preprocess_features(
         
     return processed_data
 
-def filter_best_groups(
-    group_scores: pd.DataFrame,
-    threshold: float = 0.75,
-    min_groups: int = 1,
-    max_groups: Optional[int] = None
+def filter_features_of_groups(
+    group_list: List[str],
+    group_feature_mapping: List[GroupFeatureMappingData],
+    data_x: pd.DataFrame,
+    logger: logging.Logger
 ) -> List[str]:
     """
-    Filter groups based on their scores with additional controls.
+    Filters features of gene groups based on the provided group list.
     
     Args:
-        group_scores: DataFrame with group scores
-        threshold: Score threshold for filtering (0.0 to 1.0)
-        min_groups: Minimum number of groups to return
-        max_groups: Maximum number of groups to return
+        group_list: List of gene group names to filter
+        data_x: DataFrame containing gene expression data
+        logger: Logger for logging information and errors
         
     Returns:
-        List of group names that meet the criteria
-        
-    Raises:
-        ValueError: If parameters are invalid or no groups meet criteria
+        List of filtered gene group names
     """
-    if not 0 <= threshold <= 1:
-        raise ValueError("Threshold must be between 0 and 1")
+    # Validate input data
+    is_valid, error_message = validate_data(data_x)
+    if not is_valid:
+        logger.error(f"Invalid input data: {error_message}")
+        raise ValueError(error_message)
     
-    if not isinstance(group_scores, pd.DataFrame):
-        raise ValueError("group_scores must be a pandas DataFrame")
-    
-    if 'score' not in group_scores.columns:
-        raise ValueError("group_scores must contain a 'score' column")
-    
-    # Get groups meeting threshold
-    filtered_groups = group_scores[group_scores['score'] >= threshold].index.tolist()
-    
-    # Adjust threshold if minimum groups not met
-    if len(filtered_groups) < min_groups:
-        logger.warning(
-            f"Not enough groups meet threshold. Adjusting threshold to get {min_groups} groups"
-        )
-        filtered_groups = group_scores.nlargest(min_groups, 'score').index.tolist()
-    
-    # Limit maximum groups if specified
-    if max_groups is not None and len(filtered_groups) > max_groups:
-        filtered_groups = group_scores.nlargest(max_groups, 'score').index.tolist()
-    
-    return filtered_groups 
+    # Filter features
+    filtered_features = []
+    for group_name in group_list:
+        group_data = next((group for group in group_feature_mapping if group.group_name == group_name), None)
+        if group_data is None:
+            logger.warning(f"Group {group_name} not found in group_feature_mapping")
+            continue
+        
+        # Filter features based on group data
+        filtered_features = [feature for feature in group_data.feature_list if feature in data_x.columns]
+        if not filtered_features:
+            logger.warning(f"No features found for group {group_name}")
+            continue
+        
+        filtered_features.append(group_name)
+    return filtered_features

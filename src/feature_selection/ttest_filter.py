@@ -105,7 +105,6 @@ def filter_by_pvalue(
     pvalues: np.ndarray,
     logger,
     threshold: float = 0.05,
-    feature_names: Union[np.ndarray, list] = None
 ) -> TTestResults:
     """
     Filter features based on p-values.
@@ -126,10 +125,7 @@ def filter_by_pvalue(
         # Select features meeting threshold
         selected_mask = adjusted_pvals < threshold
         
-        if feature_names is not None:
-            selected_features = np.array(feature_names)[selected_mask]
-        else:
-            selected_features = np.arange(len(pvalues))[selected_mask]
+        selected_features = np.arange(len(pvalues))[selected_mask]
 
         logger.info(f"Selected {sum(selected_mask)} features using p-value threshold {threshold}")
         
@@ -149,7 +145,6 @@ def select_features(
     y: Union[np.ndarray, pd.Series],
     logger,
     threshold: float = 0.05,
-    feature_names: Union[np.ndarray, list] = None,
     equal_var: bool = False
 ) -> TTestResults:
     """
@@ -173,7 +168,6 @@ def select_features(
         results = filter_by_pvalue(
             X, p_vals, 
             threshold=threshold,
-            feature_names=feature_names,
             logger=logger
         )
         

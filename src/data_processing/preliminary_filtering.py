@@ -22,12 +22,11 @@ import pandas as pd
 from typing import Union
 from feature_selection.ttest_filter import select_features, TTestResults
 
-def preliminary_filter(
+def preliminary_ttest_filter(
     X: Union[np.ndarray, pd.DataFrame],
     y: Union[np.ndarray, pd.Series],
     logger,
     threshold: float = 0.05,
-    feature_names: Union[np.ndarray, list] = None,
     equal_var: bool = False
 ) -> TTestResults:
     """
@@ -52,7 +51,7 @@ def preliminary_filter(
         logger.info("Starting preliminary filtering...")
         
         # Select features using t-test
-        results = select_features(X, y, threshold=threshold, feature_names=feature_names, equal_var=equal_var, logger=logger)
+        results = select_features(X, y, threshold=threshold, equal_var=equal_var, logger=logger)
         
         logger.info(f"Preliminary filtering completed. Selected {len(results.selected_features)} features.")
         return results

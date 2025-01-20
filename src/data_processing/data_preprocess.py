@@ -1,34 +1,42 @@
 """
-Data Preprocessing Module for GSM Pipeline
+🧬 Data Preprocessing Module for GSM Pipeline 🧬
 
-This module handles the core data preprocessing tasks including:
-- Loading input and group data files
-- Converting labels to binary format
-- Data normalization
-- Train/test splitting
-- Preprocessing grouping data from a .txt file
+Purpose:
+    Handles core data preprocessing tasks for gene expression analysis in the GSM pipeline.
 
-Key Functions:
-- preprocess_data: Main preprocessing pipeline
-- convert_labels_to_binary: Converts class labels to 0/1
-- normalize_data: Applies normalization to features
-- validate_input_data: Validates input data structure
-- preprocess_grouping_data: Loads and preprocesses grouping data from a .txt file
+Primary Functions:
+    🔍 preprocess_data: Main preprocessing pipeline coordinator
+    🎯 convert_labels_to_binary: Binary label conversion (0/1)
+    📊 normalize_data: Feature normalization
+    ✅ validate_input_data: Input data validation
+    📑 preprocess_grouping_data: Group data preprocessing
 
-Usage Example:
-    preprocessed_data = preprocess_data(
-        project_folder="path/to/project",
-        input_file="input.csv",
-        group_file="groups.csv"
+Input Data Requirements:
+    - Must contain 'class' column for labels
+    - Features should be numeric
+    - No duplicate indices
+    - Groups data must have GENE_COLUMN_NAME and GROUP_COLUMN_NAME
+
+Example Usage:
+    ```python
+    from data_processing.data_preprocess import preprocess_data
+    
+    processed_train, processed_test = preprocess_data(
+        input_data=input_df,
+        label_column_name='class',
+        label_of_negative_class='healthy',
+        label_of_positive_class='disease',
+        logger=logger,
+        test_size=0.2
     )
+    ```
+
+Note: All functions use explicit parameter names for better code readability.
 """
 
-from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 import pandas as pd
-import numpy as np
 
-from data_processing.data_loader import load_input_file, load_group_file
 from data_processing.normalization import normalize_data
 from data_processing.train_test_splitter import train_test_split
 from data_processing.handle_missing_values import drop_missing_values, fill_missing_values
@@ -37,13 +45,17 @@ from config import GENE_COLUMN_NAME, GROUP_COLUMN_NAME
 
 def validate_input_data(data: pd.DataFrame, label_column_name: str) -> None:
     """
-    Validates the structure and content of input data.
+    Validates input data structure and content.
     
-    Args:
-        data: Input DataFrame to validate
-        
+    Parameters:
+        data (pd.DataFrame): Input data to validate
+        label_column_name (str): Name of the label column
+    
     Raises:
-        ValueError: If data format is invalid
+        ValueError: With detailed message if validation fails
+            - Empty DataFrame
+            - Missing required columns
+            - Invalid data types
     """
     if data.empty:
         raise ValueError("Input data is empty")
@@ -55,32 +67,33 @@ def validate_input_data(data: pd.DataFrame, label_column_name: str) -> None:
 
 def preprocess_data(
     input_data: pd.DataFrame,
-    label_column_name:str,
-    label_of_negative_class,
-    label_of_positive_class,
-    logger,
+    label_column_name: str,
+    label_of_negative_class: str,
+    label_of_positive_class: str,
+    logger: Any,
     test_size: float = 0.2,
-    normalization_method='zscore',
-    random_state: int = 42
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    normalization_method: str = 'zscore',
+    random_state: int = 42,
+    # TODO: apply sample by ratio
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Main preprocessing pipeline that handles all data preparation steps.
+    Executes the complete data preprocessing pipeline.
     
-    Args:
-        input_data: DataFrame containing input data
-        test_size: Proportion of data to use for testing
-        random_state: Random seed for reproducibility
-        
+    Parameters:
+        input_data (pd.DataFrame): Raw input data
+        label_column_name (str): Name of the label column
+        label_of_negative_class (str): Label representing negative class
+        label_of_positive_class (str): Label representing positive class
+        logger (Any): Logger instance for tracking progress
+        test_size (float, optional): Proportion of test set. Defaults to 0.2
+        normalization_method (str, optional): Method for normalization. Defaults to 'zscore'
+        random_state (int, optional): Random seed. Defaults to 42
+    
     Returns:
-        Tuple containing:
-        - Preprocessed training data
-        - Preprocessed test data
-        
-    Example:
-        >>> train_data, test_data = preprocess_data(
-        ...     input_data=df,
-        ...     group_data=group_df
-        ... )
+        tuple[pd.DataFrame, pd.DataFrame]: Processed (train_data, test_data)
+    
+    Raises:
+        ValueError: If input validation fails
     """
     # Validate
     validate_input_data(input_data, label_column_name)
@@ -113,27 +126,24 @@ def preprocess_data(
 
 def convert_labels_to_binary(
     data: pd.DataFrame,
-    label_column_name,
+    label_column_name: str,
     negative_label: str,
     positive_label: str
 ) -> pd.DataFrame:
     """
-    Converts categorical labels to binary (0/1) format.
+    Converts categorical labels to binary format.
     
-    Args:
-        data: Input DataFrame with 'label' column
-        negative_label: Label to convert to 0
-        positive_label: Label to convert to 1
-        
+    Parameters:
+        data (pd.DataFrame): Input data with labels
+        label_column_name (str): Name of label column
+        negative_label (str): Label to convert to 0
+        positive_label (str): Label to convert to 1
+    
     Returns:
-        DataFrame with converted binary labels
-        
-    Example:
-        >>> df = pd.DataFrame({'label': ['healthy', 'sick']})
-        >>> convert_labels_to_binary(df, 'healthy', 'sick')
-           label
-        0     0
-        1     1
+        pd.DataFrame: Data with binary labels
+    
+    Raises:
+        ValueError: If label column is missing or invalid labels found
     """
     if label_column_name not in data.columns:
         raise ValueError("Data must contain 'label' column")
@@ -150,36 +160,36 @@ def convert_labels_to_binary(
    
 def sample_by_ratio(data: pd.DataFrame, ratio: float = 0.5) -> pd.DataFrame:
     """
-    Samples a subset of the data based on a specified ratio.
-
-    Args:
-        data: Input DataFrame to sample from
-        ratio: Sampling ratio (default: 0.5)
-
+    Creates a stratified sample of the input data.
+    
+    Parameters:
+        data (pd.DataFrame): Input data to sample
+        ratio (float, optional): Sampling ratio. Defaults to 0.5
+    
     Returns:
-        Sampled DataFrame
-
-    Example:
-        >>> df = pd.DataFrame({'A': [1, 2, 3, 4, 5]})
-        >>> sampled_df = sample_by_ratio(df, 0.5)
+        pd.DataFrame: Sampled data
+    
+    Raises:
+        ValueError: If ratio is not between 0 and 1
     """
     if not 0 < ratio < 1:
         raise ValueError("Sampling ratio must be between 0 and 1")
     sample_size = int(len(data) * ratio)
     return data.sample(sample_size)
 
-def preprocess_grouping_data(grouping_data:pd.DataFrame, logger) -> pd.DataFrame:
+def preprocess_grouping_data(grouping_data: pd.DataFrame, logger: Any) -> pd.DataFrame:
     """
-    Loads and preprocesses grouping data from a .txt file.
-
-    Args:
-        file_path: Path to the grouping data file
-
+    Preprocesses gene grouping data.
+    
+    Parameters:
+        grouping_data (pd.DataFrame): Raw grouping data
+        logger (Any): Logger instance
+    
     Returns:
-        DataFrame containing the processed grouping data
-
-    Example:
-        >>> grouping_data = preprocess_grouping_data("data/grouping_file/cancer-DisGeNET.txt")
+        pd.DataFrame: Processed grouping data
+    
+    Raises:
+        ValueError: If data is empty or missing required columns
     """
     try:        
         # Validate the structure

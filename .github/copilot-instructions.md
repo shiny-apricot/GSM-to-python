@@ -16,13 +16,12 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 - Modular, file-based organization with clear separation of concerns
 - Function-first approach: prefer functions over classes
 - Use dataclasses for complex data structures
-    - (e.g. you can use dataclass instead of a Dictionary. This makes code understandable.)
-- Implementation order: skeleton → interfaces → concrete implementations
+- NEVER USE Dictionary or Tuple. Instead use dataclass. This makes code more understandable.
+- Implementation order: skeleton → interfaces → concrete implementations. So do not write everything in one module or function, instead separate it into sub-modules.
 - Be simple and understandable so that it can be used and maintained by non-experts.
     - Since my team is not familiar with Python, consider even the people who dont know Python very well.
 
 ### Method Organization
-
 - Keep methods focused and concise
 - Extract complex logic into separate methods
 - Limit method nesting to 2-3 levels
@@ -35,6 +34,7 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 - Use descriptive names for variables, functions, and classes
 - Document all files with class/method summaries at the top
 - Include input/output examples in docstrings
+- When you give input parameters, always to use their names.
 
 ### Best Practices
 - KISS principle: Keep implementations simple and focused
@@ -75,3 +75,4 @@ src/
   - List of key functions/classes with brief descriptions
   - Usage examples where appropriate
   - Any important notes or caveats
+- Do not hesitate to use emojis or ##### type of separators in comments or logs.

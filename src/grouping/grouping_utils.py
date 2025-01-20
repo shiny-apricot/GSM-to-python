@@ -10,9 +10,9 @@ from typing import List, Tuple
 import pandas as pd
 
 from config import GROUP_COLUMN_NAME, GENE_COLUMN_NAME, LABEL_COLUMN_NAME
-from .data_structures import GroupFeatureMapping, GroupData
+from .group_feature_mapping import GroupFeatureMappingData
 
-def create_feature_group_mapping(grouping_data: pd.DataFrame) -> List[GroupFeatureMapping]:
+def create_group_feature_mapping(grouping_data: pd.DataFrame) -> List[GroupFeatureMappingData]:
     """
     Create feature-group mappings from input data.
 
@@ -51,29 +51,29 @@ def create_feature_group_mapping(grouping_data: pd.DataFrame) -> List[GroupFeatu
         group_mapping[group_name].append(feature_name)
 
     return [
-        GroupFeatureMapping(group_name=group_name, feature_list=features)
+        GroupFeatureMappingData(group_name=group_name, feature_list=features)
         for group_name, features in group_mapping.items()
     ]
 
-def get_group_data(main_data: pd.DataFrame, 
-                  grouping_data: pd.DataFrame, 
-                  group: str) -> Tuple[pd.DataFrame, pd.Series]:
-    """
-    Extract features and labels for a specific group.
+# def get_group_data(main_data: pd.DataFrame, 
+#                   grouping_data: pd.DataFrame, 
+#                   group: str) -> Tuple[pd.DataFrame, pd.Series]:
+#     """
+#     Extract features and labels for a specific group.
 
-    Args:
-        main_data: DataFrame containing all features and labels
-        grouping_data: DataFrame containing feature-group mappings
-        group: Name of the group to extract
+#     Args:
+#         main_data: DataFrame containing all features and labels
+#         grouping_data: DataFrame containing feature-group mappings
+#         group: Name of the group to extract
 
-    Returns:
-        Tuple of (features DataFrame, labels Series) for the specified group
-    """
-    # Filter the grouping data for the specified group
-    group_features = grouping_data[grouping_data[GROUP_COLUMN_NAME] == group][GENE_COLUMN_NAME]
+#     Returns:
+#         Tuple of (features DataFrame, labels Series) for the specified group
+#     """
+#     # Filter the grouping data for the specified group
+#     group_features = grouping_data[grouping_data[GROUP_COLUMN_NAME] == group][GENE_COLUMN_NAME]
     
-    # Select the relevant features from the main data
-    features = main_data[group_features].copy()
-    labels = main_data[LABEL_COLUMN_NAME]  # Assuming 'label' is the column name for labels
+#     # Select the relevant features from the main data
+#     features = main_data[group_features].copy()
+#     labels = main_data[LABEL_COLUMN_NAME]  # Assuming 'label' is the column name for labels
 
-    return features, labels 
+#     return features, labels 

@@ -13,13 +13,15 @@ Usage Example:
     predictions = predict(model, X_test)
 """
 
+from email.mime import base
 from typing import Tuple
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 
-def train_model(model: str, data_x: pd.DataFrame, data_y: pd.Series) -> Tuple:
+
+def train_model(model_name: str, data_x: pd.DataFrame, data_y: pd.Series):
     """
     Train a specified machine learning model on the provided data.
 
@@ -31,26 +33,20 @@ def train_model(model: str, data_x: pd.DataFrame, data_y: pd.Series) -> Tuple:
     Returns:
         Tuple containing:
         - Trained model
-        - Training features
-        - Training target
-        - Testing features
-        - Testing target
     """
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(data_x, data_y, test_size=0.2, random_state=42)
 
     # Initialize the model
-    if model == 'RandomForest':
-        clf = RandomForestClassifier()
-    elif model == 'GradientBoosting':
-        clf = GradientBoostingClassifier()
+    if model_name == 'RandomForest':
+        classifier = RandomForestClassifier()
+    elif model_name == 'GradientBoosting':
+        classifier = GradientBoostingClassifier()
     else:
-        raise ValueError(f"Model '{model}' is not supported.")
+        raise ValueError(f"Model '{model_name}' is not supported.")
 
     # Train the model
-    clf.fit(X_train, y_train)
+    classifier.fit(data_x, data_y)
 
-    return clf, X_train, y_train, X_test, y_test
+    return classifier
 
 def predict(model, X_test: pd.DataFrame):
     """
@@ -64,3 +60,20 @@ def predict(model, X_test: pd.DataFrame):
         Predictions for the test set.
     """
     return model.predict(X_test)
+
+def get_classifier_object(model_name: str):
+    """
+    Get the classifier object based on the model name.
+
+    Args:
+        model_name: The name of the machine learning model to use ('RandomForest' or 'GradientBoosting').
+
+    Returns:
+        The classifier object.
+    """
+    if model_name == 'RandomForest':
+        return RandomForestClassifier()
+    elif model_name == 'GradientBoosting':
+        return GradientBoostingClassifier()
+    else:
+        raise ValueError(f"Model '{model_name}' is not supported.")

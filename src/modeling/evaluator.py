@@ -17,6 +17,8 @@ Key Functions:
 - calculate_confidence_scores: Generate prediction confidence metrics
 """
 
+from scoring.metrics import MetricsData
+
 from typing import Dict, Tuple, Optional, List
 import pandas as pd
 import numpy as np
@@ -26,93 +28,63 @@ from sklearn.metrics import (
     matthews_corrcoef, balanced_accuracy_score, confusion_matrix
 )
 
-def evaluate_model(
-    model: BaseEstimator,
-    X_test: pd.DataFrame,
-    y_test: pd.Series,
-    logger,
-    return_proba: bool = True
-) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    """
-    Evaluate model performance and generate predictions.
-    
-    Args:
-        model: Trained sklearn-compatible model
-        X_test: Test features DataFrame
-        y_test: Test target Series
-        return_proba: Whether to return probability predictions
-        
-    Returns:
-        Tuple of (predictions, prediction_probabilities)
-        prediction_probabilities will be None if return_proba=False
-        
-    Raises:
-        ValueError: If input data shapes don't match or model is not fitted
-    """
-    if not hasattr(model, "predict"):
-        raise ValueError("Model must implement predict method")
-        
-    try:
-        y_pred = model.predict(X_test)
-        y_pred_proba = model.predict_proba(X_test)[:, 1] if return_proba else None
-        
-        logger.info(f"Generated predictions for {len(X_test)} samples")
-        return y_pred, y_pred_proba
-        
-    except Exception as e:
-        logger.error(f"Error during model evaluation: {str(e)}")
-        raise
 
 def calculate_metrics(
     y_true: pd.Series,
     y_pred: np.ndarray,
     logger,
     y_pred_proba: Optional[np.ndarray] = None,
-) -> Dict[str, float]:
+) -> MetricsData:
     """
     Calculate comprehensive classification performance metrics.
     
     Args:
         y_true: True target values
         y_pred: Predicted target values
+        logger: Logger instance
         y_pred_proba: Prediction probabilities (optional)
         
     Returns:
-        Dictionary containing metrics:
-        - ROC AUC (if probabilities provided)
-        - Precision
-        - Recall
-        - F1 Score
-        - Matthews Correlation Coefficient
-        - Balanced Accuracy
-        - Confusion Matrix elements
+        MetricsData object containing all calculated metrics
+        
+    Raises:
+        ValueError: If input shapes don't match
     """
     try:
-        metrics = {
-            'precision': precision_score(y_true, y_pred),
-            'recall': recall_score(y_true, y_pred),
-            'f1': f1_score(y_true, y_pred),
-            'mcc': matthews_corrcoef(y_true, y_pred),
-            'balanced_accuracy': balanced_accuracy_score(y_true, y_pred)
-        }
-        
-        # Add ROC AUC if probabilities are provided
-        if y_pred_proba is not None:
-            metrics['roc_auc'] = roc_auc_score(y_true, y_pred_proba)
+        if y_true.shape != y_pred.shape:
+            raise ValueError("Shape mismatch between y_true and y_pred")
             
-        # Add confusion matrix elements
-        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-        metrics.update({
-            'true_negatives': tn,
-            'false_positives': fp,
-            'false_negatives': fn,
-            'true_positives': tp
-        })
+        # Initialize metrics object
+        metrics = MetricsData(name="model_evaluation")
         
+        # Basic metrics
+        metrics.accuracy = float(balanced_accuracy_score(y_true, y_pred))
+        metrics.precision = float(precision_score(y_true, y_pred))
+        metrics.recall = float(recall_score(y_true, y_pred))
+        metrics.f1 = float(f1_score(y_true, y_pred))
+        
+        # Calculate specificity from confusion matrix
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        metrics.specificity = float(tn / (tn + fp))
+        
+        # ROC AUC if probabilities are provided
+        if y_pred_proba is not None:
+            metrics.roc_auc = float(roc_auc_score(y_true, y_pred_proba))
+            
+            # Calculate confidence metrics
+            confidence_scores = calculate_confidence_scores(
+                y_pred_proba=y_pred_proba,
+                logger=logger
+            )
+            # Add confidence metrics as additional attributes
+            for key, value in confidence_scores.items():
+                setattr(metrics, key, value)
+            
+        logger.info("✅ Successfully calculated metrics")
         return metrics
         
     except Exception as e:
-        logger.error(f"Error calculating metrics: {str(e)}")
+        logger.error(f"❌ Error calculating metrics: {str(e)}")
         raise
 
 def update_feature_ranks(
@@ -121,7 +93,7 @@ def update_feature_ranks(
     logger,
     method: str = 'mean',
     weights: Optional[List[float]] = None
-) -> pd.DataFrame:
+): #TODO: check return type
     """
     Update feature importance rankings with new scores.
     
@@ -151,9 +123,9 @@ def update_feature_ranks(
         elif method == 'max':
             return combined.groupby('feature').max()
         else:  # weighted
-            return (combined.groupby('feature')
-                   .apply(lambda x: np.average(x, weights=weights)))
-            
+            #TODO: add weighted average calculation
+            # return combined.groupby('feature').apply(lambda x: float(np.average(x, weights=weights[:len(x)])))
+            pass
     except Exception as e:
         logger.error(f"Error updating feature ranks: {str(e)}")
         raise

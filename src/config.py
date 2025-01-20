@@ -16,14 +16,18 @@ Key Configuration Sections:
 
 from typing import Literal
 from dataclasses import dataclass
+from pathlib import Path
 
 # ============================================================================
 # Input/Output Configuration
 # ============================================================================
 
-INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
-INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
-OUTPUT_DIR = "output/"
+project_dir = Path(__file__).resolve().parents[1]
+
+INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
+# INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
+INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
+OUTPUT_DIR = project_dir / "output"
 
 # Group Settings
 GROUP_COLUMN_NAME = "diseaseName"
@@ -37,7 +41,7 @@ MAX_GENES_PER_GROUP = 1000
 
 RANDOM_SEED = 44
 CROSS_VALIDATION_FOLDS = 5
-NUMBER_OF_ITERATIONS = 5
+NUMBER_OF_ITERATIONS = 1
 SAVE_INTERMEDIATE_RESULTS = True
 
 # ============================================================================

@@ -7,11 +7,38 @@ Functions:
 - rank_by_score: Rank items by their scores
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-def calculate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+@dataclass
+class MetricsData:
+    name: Optional[str] = None
+
+    # Basic metrics
+    accuracy: Optional[float] = None
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    f1: Optional[float] = None
+    specificity: Optional[float] = None
+    roc_auc: Optional[float] = None
+
+    # Standard deviations
+    accuracy_std: Optional[float] = None
+    precision_std: Optional[float] = None
+    recall_std: Optional[float] = None
+    f1_std: Optional[float] = None
+    specificity_std: Optional[float] = None
+    roc_auc_std: Optional[float] = None
+
+    # Confidence metrics
+    mean_confidence: Optional[float] = None
+    high_confidence_ratio: Optional[float] = None
+    decision_boundary_ratio: Optional[float] = None
+
+
+def calculate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> MetricsData:
     """
     Calculate common ML evaluation metrics.
     
@@ -20,45 +47,47 @@ def calculate_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float
         y_pred: Predicted labels
         
     Returns:
-        Dictionary containing accuracy, precision, recall, and F1 scores
+        Metrics dataclass containing accuracy, precision, recall, and F1 scores
     """
-    return {
-        "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred),
-        "recall": recall_score(y_true, y_pred),
-        "f1": f1_score(y_true, y_pred)
-    }
+    return MetricsData(
+        accuracy=float(accuracy_score(y_true, y_pred)),
+        precision=float(precision_score(y_true, y_pred)),
+        recall=float(recall_score(y_true, y_pred)),
+        f1=float(f1_score(y_true, y_pred))
+    )
 
-def calculate_average_scores(scores: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+def calculate_average_scores(scores: Dict[str, MetricsData]) -> MetricsData:
     """
     Calculate average scores across all features or groups.
     
     Args:
-        scores: Dictionary of score metrics
+        scores: Dictionary of Metrics dataclass
         
     Returns:
-        Dictionary of averaged metrics
+        Metrics dataclass of averaged metrics
     """
-    metrics = list(next(iter(scores.values())).keys())
-    return {
-        metric: np.mean([score[metric] for score in scores.values()])
-        for metric in metrics
-    }
+    return MetricsData(
+        accuracy=float(np.mean([score.accuracy for score in scores.values() if score.accuracy is not None])),
+        precision=float(np.mean([score.precision for score in scores.values() if score.precision is not None])),
+        recall=float(np.mean([score.recall for score in scores.values() if score.recall is not None])),
+        f1=float(np.mean([score.f1 for score in scores.values() if score.f1 is not None]))
+    )
 
-def rank_by_score(scores: Dict[str, Dict[str, float]], 
-                 metric: str = "f1") -> List[Tuple[str, float]]:
+
+def rank_by_score(scores: List[MetricsData], metric: str = "f1") -> List[MetricsData]:
     """
     Rank features or groups by their scores.
     
     Args:
-        scores: Dictionary of score metrics
-        metric: Metric to use for ranking (default: f1)
+        scores: List of MetricsData objects
+        metric: Metric to rank by (default is "f1")
         
     Returns:
-        List of (name, score) tuples sorted by score
+        List of MetricsData objects sorted by the specified metric in descending order
     """
-    return sorted(
-        [(name, metrics[metric]) for name, metrics in scores.items()],
-        key=lambda x: x[1],
-        reverse=True
-    )
+    valid_metrics = ["accuracy", "precision", "recall", "f1", "specificity", "roc_auc"]
+    if metric not in valid_metrics:
+        raise ValueError(f"Invalid metric '{metric}'. Choose from {valid_metrics}.")
+
+    # Sort the scores based on the specified metric in descending order
+    return sorted(scores, key=lambda x: getattr(x, metric), reverse=True)

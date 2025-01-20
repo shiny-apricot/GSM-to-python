@@ -25,7 +25,10 @@ from typing import Tuple, Optional, Union
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from dataclasses import dataclass
+from data_processing.TrainTestValSplitData import TrainTestValSplitData
 
+    
 def validate_split_params(
     data: pd.DataFrame,
     target_column: str,
@@ -55,8 +58,7 @@ def split_data(
     val_size: Optional[float] = None,
     stratify: bool = False,
     random_state: Optional[int] = 42
-) -> Union[Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series],
-           Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]]:
+) -> TrainTestValSplitData:
     """
     Split the dataset into training, validation (optional), and testing sets.
 
@@ -105,7 +107,7 @@ def split_data(
             random_state=random_state
         )
         
-        return X_train, X_val, X_test, y_train, y_val, y_test
+        return TrainTestValSplitData(X_train, X_val, X_test, y_train, y_val, y_test)
     
     # Simple train-test split
     X_train, X_test, y_train, y_test = train_test_split(
@@ -115,4 +117,4 @@ def split_data(
         random_state=random_state
     )
     
-    return X_train, X_test, y_train, y_test
+    return TrainTestValSplitData(X_train=X_train, X_test=X_test, y_train=y_train, y_test=y_test)

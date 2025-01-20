@@ -11,16 +11,16 @@ Key Functions:
 """
 from typing import Dict, List, Tuple
 import pandas as pd
+from dataclasses import dataclass
 
 import config
-from .data_structures import GroupData, GroupingResult
-from .grouping_utils import create_feature_group_mapping, get_group_data
+from .grouping_utils import create_group_feature_mapping
+from .group_feature_mapping import GroupFeatureMappingData
 
 def run_grouping(
-    main_data: pd.DataFrame,
     grouping_data: pd.DataFrame,
     **kwargs
-) -> GroupingResult:
+) -> List[GroupFeatureMappingData]:
     """
     Run the grouping process to organize features into their respective groups.
     
@@ -45,26 +45,29 @@ def run_grouping(
         ValueError: If input data validation fails
     """
     # Create feature-to-group mapping
-    feature_mappings = create_feature_group_mapping(grouping_data)
+    feature_mappings = create_group_feature_mapping(grouping_data)
     
     # Get unique groups, applying any filters from kwargs
-    groups = grouping_data[config.GROUP_COLUMN_NAME].unique()
-    if 'custom_groups' in kwargs:
-        groups = [g for g in groups if g in kwargs['custom_groups']]
-    if 'exclude_groups' in kwargs:
-        groups = [g for g in groups if g not in kwargs['exclude_groups']]
+    # TODO: what is this?
+    # groups = grouping_data[config.GROUP_COLUMN_NAME].unique()
+    # if 'custom_groups' in kwargs:
+    #     groups = [g for g in groups if g in kwargs['custom_groups']]
+    # if 'exclude_groups' in kwargs:
+    #     groups = [g for g in groups if g not in kwargs['exclude_groups']]
     
-    # Organize data by groups
-    grouped_data: Dict[str, GroupData] = {}
-    for group in groups:
-        features, labels = get_group_data(main_data, grouping_data, group)
-        grouped_data[group] = GroupData(
-            features=features,
-            labels=labels,
-            group_name=group
-        )
+    # # Organize data by groups
+    # grouped_data: Dict[str, GroupData] = {}
+    # for group in groups:
+    #     features, labels = get_group_data(main_data, grouping_data, group)
+    #     grouped_data[group] = GroupData(
+    #         features=features,
+    #         labels=labels,
+    #         group_name=group
+    #     )
     
-    return GroupingResult(
-        grouped_data=grouped_data,
-        feature_mappings=feature_mappings
-    ) 
+    # return GroupingResult(
+    #     grouped_data=grouped_data,
+    #     feature_mappings=feature_mappings
+    # ) 
+
+    return feature_mappings
