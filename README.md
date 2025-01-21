@@ -40,8 +40,8 @@ tests/                       # Python tests
 ## Installation
 1. Clone the repository:
     ```sh
-    git clone <repository_url>
-    cd <repository_directory>
+    git clone https://github.com/shiny-apricot/GSM-to-python.git
+    cd GSM-to-python
     ```
 2. Install the required dependencies:
     ```sh
