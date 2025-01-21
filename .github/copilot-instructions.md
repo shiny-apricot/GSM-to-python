@@ -17,6 +17,7 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 - Function-first approach: prefer functions over classes
 - Use dataclasses for complex data structures
 - NEVER USE Dictionary or Tuple. Instead use dataclass. This makes code more understandable.
+- For methods taking more than 2 input parameter, create a config class for the inputs. Name the class as ...Parameters
 - Implementation order: skeleton → interfaces → concrete implementations. So do not write everything in one module or function, instead separate it into sub-modules.
 - Be simple and understandable so that it can be used and maintained by non-experts.
     - Since my team is not familiar with Python, consider even the people who dont know Python very well.
@@ -28,6 +29,7 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 - Break down long methods into smaller, well-named functions
 - Use meaningful method names that describe their purpose
 - Follow the Single Responsibility Principle
+- Always take logger as parameters 
 
 ### Code Style
 - Follow PEP 8 guidelines
@@ -54,8 +56,15 @@ src/
 ├── grouping/ # Gene grouping implementation
 ├── scoring/ # Group scoring algorithms
 ├── modeling/ # ML model training
-├── prediction/ # Prediction generation
+├── machine_learning/ # Include machine learning tools
+├── feature_selection # FS Tools
 └── utils/ # Shared utilities
+data/
+├── grouping_data
+├── main_data
+├── test # Test data for a fast preliminary check
+tests/ # Python tests
+
 
 ## Dependencies
 - pandas: Data manipulation
@@ -76,3 +85,4 @@ src/
   - Usage examples where appropriate
   - Any important notes or caveats
 - Do not hesitate to use emojis or ##### type of separators in comments or logs.
+- Write documentations for NON-PYTHON researchers

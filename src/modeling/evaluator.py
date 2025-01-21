@@ -80,7 +80,6 @@ def calculate_metrics(
             for key, value in confidence_scores.items():
                 setattr(metrics, key, value)
             
-        logger.info("✅ Successfully calculated metrics")
         return metrics
         
     except Exception as e:

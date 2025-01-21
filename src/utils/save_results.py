@@ -186,54 +186,64 @@ class ResultSaver:
         except Exception as e:
             self.logger.error(f"❌ Failed to save metadata: {str(e)}")
             raise
-    def save_modeling_results(self, results: List[ModelingResult], experiment_name: str) -> List[Dict[str, Path]]:
-        """
-        Save all components of modeling results including model, metrics, and feature lists.
+
+
+def save_modeling_results(self, results: List[List[ModelingResult]], experiment_name: str) -> List[List[Dict[str, Path]]]:
+    """
+    Save all components of modeling results including model, metrics, groups and features.
+    Combines results into single files and handles nested lists of modeling results.
+    
+    Args:
+        results (List[List[ModelingResult]]): Nested list of modeling results to save
+        experiment_name (str): Base name of the experiment for file naming
         
-        Args:
-            results (List[ModelingResult]): List of modeling results to save
-            experiment_name (str): Base name of the experiment for file naming
+    Returns:
+        List[List[Dict[str, Path]]]: Nested list of dictionaries containing saved file paths
+    """
+    try:
+        saved_paths_list = []
+        
+        for outer_idx, result_group in enumerate(results):
+            group_paths = []
             
-        Returns:
-            List[Dict[str, Path]]: List of dictionaries containing saved file paths for each result
-        """
-        try:
-            saved_paths_list = []
-            
-            for i, result in enumerate(results):
+            for inner_idx, result in enumerate(result_group):
                 saved_paths = {}
-                suffix = f"{experiment_name}_{i+1}"
+                suffix = f"{experiment_name}_{outer_idx+1}_{inner_idx+1}"
                 
-                # Save the trained model
-                model_path = self.save_model(
-                    result.trained_model,
-                    f"{suffix}_model"
-                )
-                saved_paths['model'] = model_path
-                
-                # Save metrics as JSON
+                # Save individual metrics
                 metrics_path = self.save_metadata(
                     asdict(result.metrics),
                     f"{suffix}_metrics"
                 )
                 saved_paths['metrics'] = metrics_path
                 
-                # Save groups and features lists
-                groups_features = {
+                # Save groups and features
+                features_data = {
                     'groups': result.groups,
                     'features': result.features
                 }
                 features_path = self.save_metadata(
-                    groups_features,
-                    f"{suffix}_features"
+                    features_data,
+                    f"{suffix}_features" 
                 )
                 saved_paths['features'] = features_path
                 
-                saved_paths_list.append(saved_paths)
-                self.logger.info(f"✅ Successfully saved modeling results {i+1} for {experiment_name}")
+                group_paths.append(saved_paths)
             
-            return saved_paths_list
+            # Combine all metrics for this group into one file
+            combined_metrics = {
+                f"iteration_{i+1}": asdict(result.metrics)
+                for i, result in enumerate(result_group)
+            }
+            combined_path = self.save_metadata(
+                combined_metrics,
+                f"{experiment_name}_{outer_idx+1}_combined_metrics"
+            )
             
-        except Exception as e:
-            self.logger.error(f"❌ Failed to save modeling results: {str(e)}")
-            raise
+            saved_paths_list.append(group_paths)
+        
+        return saved_paths_list
+            
+    except Exception as e:
+        self.logger.error(f"❌ Failed to save modeling results: {str(e)}")
+        raise

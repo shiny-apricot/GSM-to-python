@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import pandas as pd
 import logging
 from sklearn.base import BaseEstimator
@@ -14,7 +14,7 @@ from scoring.metrics import MetricsData
 
 @dataclass
 class ModelingResult:
-    trained_model: BaseEstimator
+    trained_model: Optional[BaseEstimator]
     metrics: MetricsData
     groups: List[str]
     features: List[str]

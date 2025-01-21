@@ -37,11 +37,14 @@ from math import exp
 from config import (INPUT_EXPRESSION_DATA, INPUT_GROUP_DATA, OUTPUT_DIR, 
                      RANDOM_SEED, CROSS_VALIDATION_FOLDS, NUMBER_OF_ITERATIONS, 
                      SAVE_INTERMEDIATE_RESULTS, TRAIN_TEST_SPLIT_RATIO, MODEL_NAME, LABEL_COLUMN_NAME, NORMALIZATION_METHOD,
-                     CLASS_LABELS_NEGATIVE, CLASS_LABELS_POSITIVE)
+                     CLASS_LABELS_NEGATIVE, CLASS_LABELS_POSITIVE, BEST_GROUPS_TO_KEEP)
 
 import pandas as pd
 from dataclasses import dataclass
+from typing import List
 
+from grouping import group_feature_mapping
+from grouping.grouping_utils import create_group_feature_mapping
 from grouping.run_grouping import run_grouping
 from scoring.run_scoring import run_scoring
 from modeling.run_modeling import ModelingResult, run_modeling
@@ -52,7 +55,7 @@ from data_processing.train_test_splitter import split_data
 from data_processing.preliminary_filtering import preliminary_ttest_filter
 from data_processing import TrainTestValSplitData
 from utils import save_results
-
+from grouping.grouping_utils import create_group_feature_mapping
 
 ##### Data Structures #####
 @dataclass
@@ -114,7 +117,7 @@ def gsm_run(input_data: pd.DataFrame,
     group_data_processed = preprocess_grouping_data(group_data, logger=logger)
     logger.info("Grouping data preprocessing completed.")
     
-    modeling_result_list = []
+    modeling_result_list : List[List[ModelingResult]] = []
     for i in range(config.n_iteration_workflow):    
         logger.info(f"Iteration {i} for gsm_main_loop started...")
         modeling_result = gsm_main_loop(data_preprocessed_train, group_data_processed, config.model_name, logger)
@@ -124,7 +127,7 @@ def gsm_run(input_data: pd.DataFrame,
     # Save intermediate results if enabled
     if SAVE_INTERMEDIATE_RESULTS:
         logger.info("Saving intermediate results...")
-        result_saver = save_results.ResultSaver(base_dir=OUTPUT_DIR, 
+        result_saver = save_results.ResultSaver(base_dir=str(OUTPUT_DIR), 
                                                 create_timestamp_subdir=True,
                                                 logger=logger)
         result_saver.save_modeling_results(modeling_result_list, "modeling_results")
@@ -134,7 +137,7 @@ def gsm_run(input_data: pd.DataFrame,
 def gsm_main_loop(data: pd.DataFrame, 
                   grouping_data: pd.DataFrame,
                   model_name: str, 
-                  logger) -> ModelingResult:
+                  logger) -> List[ModelingResult]:
     """
     Executes one complete iteration of the GSM workflow.
 
@@ -172,7 +175,10 @@ def gsm_main_loop(data: pd.DataFrame,
 
     # Gene Grouping
     logger.info("🔗 Running gene grouping analysis...")
-    grouping_result_object = run_grouping(grouping_data)
+    group_feature_mapping_data = create_group_feature_mapping(grouping_data)
+    grouping_result_object = run_grouping(grouping_data, 
+                                          group_feature_mappings= group_feature_mapping_data,
+                                          logger=logger)
     logger.info("Grouping completed.")
 
     # Group Scoring
@@ -187,13 +193,21 @@ def gsm_main_loop(data: pd.DataFrame,
 
     # Model Training
     logger.info("🤖 Training and evaluating models...")
-    modeling_result = run_modeling(data_train_x=train_test_split_data.X_train,
-                                                                      data_train_y=train_test_split_data.y_train,
-                                                                      data_test_x=train_test_split_data.X_test,
-                                                                      data_test_y=train_test_split_data.y_test,
-                                                                      group_feature_mapping=grouping_result_object,
-                                                                      logger=logger,
-                                                                      model_name=model_name,
-                                                                      group_ranks=ranked_groups)
+    # Start by using BEST_GROUPS_TO_KEEP number of groups,
+    # Then decrease the number of groups iteratively
+    modeling_result_list = []
+    for i in range(1, BEST_GROUPS_TO_KEEP+1):
+        logger.info(f"Training model with top {i} groups...")
+        modeling_result = run_modeling(data_train_x=train_test_split_data.X_train, 
+                                       data_train_y=train_test_split_data.y_train,
+                                       data_test_x=train_test_split_data.X_test,
+                                       data_test_y=train_test_split_data.y_test,
+                                       group_ranks=ranked_groups[:i],
+                                       group_feature_mapping=group_feature_mapping_data,
+                                       model_name=model_name, 
+                                       logger=logger)
+        modeling_result_list.append(modeling_result)
+        logger.info(f"Modeling with top {i} groups completed")
+
     logger.info("Modeling completed successfully.")
-    return modeling_result
+    return modeling_result_list

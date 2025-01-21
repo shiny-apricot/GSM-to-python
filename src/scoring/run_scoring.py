@@ -10,18 +10,21 @@ from venv import logger
 import numpy as np
 import pandas as pd
 
-from .feature_scorer import score_features
-from .data_scorer import score_data
+from config import CROSS_VALIDATION_FOLDS
+
+from .score_data import ScoringParameters, score_data
 from .metrics import MetricsData, rank_by_score
 from grouping.group_feature_mapping import GroupFeatureMappingData
 from IPython.display import display
 from tqdm import tqdm
 
+
 def run_scoring(data_x: pd.DataFrame,
                 labels: pd.Series,
                 model_name: str,
                 logger,
-                groups: List[GroupFeatureMappingData]) -> List[MetricsData]:
+                groups: List[GroupFeatureMappingData],
+                ) -> List[MetricsData]:
     """
     Run the complete scoring pipeline.
     
@@ -50,15 +53,23 @@ def run_scoring(data_x: pd.DataFrame,
                             if feature in data_x.columns]
         
         if not available_features:
-            # logger.warning(f"⚠️ No valid features found for group: {current_group.group_name}")
+            logger.warning(f"⚠️ No valid features found for group: {current_group.group_name}")
             continue
             
         group_feature_data = data_x[available_features]
-        current_score = score_data(group_feature_data, labels, classifier_name=model_name)
+
+        scoring_parameters = ScoringParameters(data_x=group_feature_data,
+                                               labels=labels,
+                                               classifier_name=model_name,
+                                               cross_validation_folds=CROSS_VALIDATION_FOLDS,
+                                               logger=logger)
+        current_score = score_data(scoring_parameters)
         current_score.name = current_group.group_name
         processed_group_scores.append(current_score)
     
-    ranked_groups = rank_by_score(processed_group_scores, metric="f1")
+    ranked_groups = rank_by_score(metrics_list=processed_group_scores,
+                                  score_type="f1",
+                                  logger=logger)
     
-    return ranked_groups
+    return ranked_groups.metrics
 

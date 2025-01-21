@@ -22,6 +22,7 @@ from pathlib import Path
 # Input/Output Configuration
 # ============================================================================
 
+# Get the project directory. This assumes the config file is in the 'src' directory.
 project_dir = Path(__file__).resolve().parents[1]
 
 INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
@@ -32,8 +33,22 @@ OUTPUT_DIR = project_dir / "output"
 # Group Settings
 GROUP_COLUMN_NAME = "diseaseName"
 GENE_COLUMN_NAME = "geneSymbol"
-MIN_GENES_PER_GROUP = 10
-MAX_GENES_PER_GROUP = 1000
+
+# MIN_GENES_PER_GROUP = 10 #TODO: should I keep it?
+# MAX_GENES_PER_GROUP = 1000
+
+# ============================================================================
+# Data Processing Settings
+# ============================================================================
+
+LABEL_COLUMN_NAME = 'class'
+NORMALIZATION_METHOD = 'zscore'  # Options: 'minmax', 'zscore', 'robust'
+TRAIN_TEST_SPLIT_RATIO = 0.7
+CLASS_LABELS_POSITIVE = "pos"
+CLASS_LABELS_NEGATIVE = "neg"
+MIN_CLASS_BALANCE_RATIO = 0.5
+SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', 'hybrid'
+# TODO: implement sampling methods
 
 # ============================================================================
 # Pipeline Control
@@ -51,7 +66,8 @@ SAVE_INTERMEDIATE_RESULTS = True
 # Supported model types
 ModelType = Literal['DecisionTree', 'RandomForest', 'SVM', 'KNN', 'MLP']
 
-MODEL_NAME = 'RandomForest'  # type: ModelType
+MODEL_NAME:ModelType = 'RandomForest'
+
 HYPERPARAMETERS = {
     'RandomForest': {
         'n_estimators': 100,
@@ -71,20 +87,8 @@ HYPERPARAMETERS = {
 
 INITIAL_FILTER_SIZE = 1000  # 0 to disable initial filtering
 BEST_GROUPS_TO_KEEP = 10
-MIN_VARIANCE_THRESHOLD = 0.01
+# MIN_VARIANCE_THRESHOLD = 0.01 #TODO: should I keep it?
 SELECTION_METHOD = 't_test'  # Options: 't_test', 'f_test', 'mutual_info'
-
-# ============================================================================
-# Data Processing Settings
-# ============================================================================
-
-LABEL_COLUMN_NAME = 'class'
-NORMALIZATION_METHOD = 'zscore'  # Options: 'minmax', 'zscore', 'robust'
-TRAIN_TEST_SPLIT_RATIO = 0.7
-CLASS_LABELS_POSITIVE = "pos"
-CLASS_LABELS_NEGATIVE = "neg"
-MIN_CLASS_BALANCE_RATIO = 0.5
-SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', 'hybrid'
 
 # ============================================================================
 # Logging Configuration
