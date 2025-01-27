@@ -1,4 +1,5 @@
 from typing import Tuple, List, Optional
+from numpy import number
 import pandas as pd
 import logging
 from sklearn.base import BaseEstimator

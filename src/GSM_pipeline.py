@@ -1,3 +1,11 @@
+
+# TODO: Implement unit tests for gsm_run and gsm_main_loop functions
+# TODO: Optimize data preprocessing steps for large datasets using dask
+# TODO: Refactor gsm_main_loop to reduce complexity and improve readability
+# TODO: Add support for additional ML models in the modeling stage
+# TODO: Add functionality to visualize intermediate results and final outputs
+# TODO: Document each function with comprehensive docstrings and usage examples
+
 """
 🧬 GSM_pipeline.py - Main Pipeline Implementation for Gene Analysis
 
@@ -196,7 +204,7 @@ def gsm_main_loop(data: pd.DataFrame,
     # Start by using BEST_GROUPS_TO_KEEP number of groups,
     # Then decrease the number of groups iteratively
     modeling_result_list = []
-    for i in range(1, BEST_GROUPS_TO_KEEP+1):
+    for i in range(BEST_GROUPS_TO_KEEP, 0, -1):
         logger.info(f"Training model with top {i} groups...")
         modeling_result = run_modeling(data_train_x=train_test_split_data.X_train, 
                                        data_train_y=train_test_split_data.y_train,

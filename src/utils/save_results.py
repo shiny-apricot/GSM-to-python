@@ -30,7 +30,7 @@ from matplotlib.figure import Figure
 import seaborn as sns
 from joblib import dump
 from modeling.run_modeling import ModelingResult
-
+import config
 
 class ResultSaver:
     """Handles saving of various analysis results with error handling and logging."""
@@ -188,62 +188,68 @@ class ResultSaver:
             raise
 
 
-def save_modeling_results(self, results: List[List[ModelingResult]], experiment_name: str) -> List[List[Dict[str, Path]]]:
-    """
-    Save all components of modeling results including model, metrics, groups and features.
-    Combines results into single files and handles nested lists of modeling results.
-    
-    Args:
-        results (List[List[ModelingResult]]): Nested list of modeling results to save
-        experiment_name (str): Base name of the experiment for file naming
+    def save_modeling_results(self, 
+                            results: List[List[ModelingResult]], 
+                            experiment_name: str) -> List[List[Dict[str, Path]]]:
+        """
+        Save all components of modeling results including metrics, groups and features
+        into single combined files for each model iteration.
         
-    Returns:
-        List[List[Dict[str, Path]]]: Nested list of dictionaries containing saved file paths
-    """
-    try:
-        saved_paths_list = []
-        
-        for outer_idx, result_group in enumerate(results):
-            group_paths = []
+        Args:
+            results (List[List[ModelingResult]]): Nested list of modeling results to save
+            experiment_name (str): Base name of the experiment for file naming
             
-            for inner_idx, result in enumerate(result_group):
-                saved_paths = {}
-                suffix = f"{experiment_name}_{outer_idx+1}_{inner_idx+1}"
+        Returns:
+            List[List[Dict[str, Path]]]: Nested list of dictionaries containing saved file paths
+        """
+        # TODO: Save data descriptions and config.py file
+        try:
+            saved_paths_list = []
+            
+            for outer_idx, result_group in enumerate(results):
+                group_paths = []
                 
-                # Save individual metrics
-                metrics_path = self.save_metadata(
-                    asdict(result.metrics),
-                    f"{suffix}_metrics"
-                )
-                saved_paths['metrics'] = metrics_path
+                for inner_idx, result in enumerate(result_group):
+                    saved_paths = {}
+                    suffix = f"{experiment_name}_{outer_idx+1}_{inner_idx+1}"
+                    
+                    # Combine metrics, groups and features into single result data
+                    combined_data = {
+                        'metrics': asdict(result.metrics),
+                        'groups': result.groups,
+                        'features': result.features
+                    }
+                    
+                    # # Save combined results
+                    # result_path = self.save_metadata(
+                    #     combined_data,
+                    #     f"{suffix}_results"
+                    # )
+                    # saved_paths['results'] = result_path
+                    
+                    # group_paths.append(saved_paths)
                 
-                # Save groups and features
-                features_data = {
-                    'groups': result.groups,
-                    'features': result.features
+                # Combine all results for this group into one file
+                combined_group_results = {
+                    f"group_count_{len(result_group)-i}": {
+                        'metrics': asdict(result.metrics),
+                        'number_of_groups': len(result.groups),
+                        'number_of_features': len(result.features),
+                        'groups': result.groups,
+                        'features': result.features
+                    }
+                    for i, result in enumerate(result_group)
                 }
-                features_path = self.save_metadata(
-                    features_data,
-                    f"{suffix}_features" 
+
+                combined_path = self.save_metadata(
+                    combined_group_results,
+                    f"{experiment_name}_{outer_idx+1}_combined_results"
                 )
-                saved_paths['features'] = features_path
                 
-                group_paths.append(saved_paths)
+                saved_paths_list.append(group_paths)
             
-            # Combine all metrics for this group into one file
-            combined_metrics = {
-                f"iteration_{i+1}": asdict(result.metrics)
-                for i, result in enumerate(result_group)
-            }
-            combined_path = self.save_metadata(
-                combined_metrics,
-                f"{experiment_name}_{outer_idx+1}_combined_metrics"
-            )
-            
-            saved_paths_list.append(group_paths)
-        
-        return saved_paths_list
-            
-    except Exception as e:
-        self.logger.error(f"❌ Failed to save modeling results: {str(e)}")
-        raise
+            return saved_paths_list
+                
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save modeling results: {str(e)}")
+            raise

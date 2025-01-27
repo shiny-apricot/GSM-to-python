@@ -21,6 +21,7 @@ from statsmodels.stats.multitest import multipletests
 from scipy import stats
 from typing import Union, Optional
 from dataclasses import dataclass
+from config import INITIAL_FEATURE_FILTER_SIZE
 
 ##### Data Structure Definitions #####
 
@@ -112,15 +113,30 @@ def filter_by_pvalue(
         # Adjust p-values
         adjusted_pvals = adjust_pvalues(pvalues, config, logger)
         
-        # Select significant genes
-        selected_mask = adjusted_pvals < config.threshold
-        selected_features = np.arange(len(pvalues))[selected_mask]
+        # First filter by p-value threshold
+        significant_mask = adjusted_pvals < config.threshold
+        
+        # Only apply top-K filter if INITIAL_FEATURE_FILTER_SIZE > 0
+        if INITIAL_FEATURE_FILTER_SIZE > 0:
+            # Take top K features by p-value
+            sorted_indices = np.argsort(adjusted_pvals)
+            top_k_mask = np.zeros_like(significant_mask)
+            top_k_mask[sorted_indices[:INITIAL_FEATURE_FILTER_SIZE]] = True
+            # Combine both filters
+            final_mask = significant_mask & top_k_mask
+        else:
+            # Use only significance filter if no size limit
+            final_mask = significant_mask
+            
+        selected_features = np.arange(len(pvalues))[final_mask]
         
         # Get feature names if available
-        selected_names = (data.feature_names[selected_mask] 
+        selected_names = (data.feature_names[final_mask] 
                          if data.feature_names is not None else None)
 
-        logger.info(f"✅ Selected {sum(selected_mask)} significant genes")
+        logger.info(f"✅ Selected {sum(significant_mask)} significant genes")
+        if INITIAL_FEATURE_FILTER_SIZE > 0:
+            logger.info(f"✅ Final selection: {sum(final_mask)} genes after size filter (INITIAL_FEATURE_FILTER_SIZE={INITIAL_FEATURE_FILTER_SIZE})")
         
         return TTestResults(
             statistics=pvalues,

@@ -28,6 +28,7 @@ project_dir = Path(__file__).resolve().parents[1]
 INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
 # INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
 INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
+# INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
 OUTPUT_DIR = project_dir / "output"
 
 # Group Settings
@@ -85,7 +86,7 @@ HYPERPARAMETERS = {
 # Feature Selection Settings
 # ============================================================================
 
-INITIAL_FILTER_SIZE = 1000  # 0 to disable initial filtering
+INITIAL_FEATURE_FILTER_SIZE = 1000  # 0 to disable initial filtering
 BEST_GROUPS_TO_KEEP = 10
 # MIN_VARIANCE_THRESHOLD = 0.01 #TODO: should I keep it?
 SELECTION_METHOD = 't_test'  # Options: 't_test', 'f_test', 'mutual_info'
