@@ -1,8 +1,7 @@
 """
 🧬 Core Grouping Module for GSM Pipeline 🧬
 
-This module organizes features into logical groups based on biological relationships
-or other criteria specified in the grouping configuration.
+This module organizes features into logical groups based on biological relationships.
 
 Key Functions:
 -------------
@@ -12,40 +11,30 @@ Key Functions:
 Example Usage:
 -------------
 >>> grouping_data = pd.read_csv('group_config.csv')
->>> grouped_features = run_grouping(grouping_data)
+>>> grouped_features = run_grouping(grouping_data, group_feature_mappings, logger)
 >>> print(f"Created {len(grouped_features)} feature groups")
 """
 
 import logging
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 import pandas as pd
 
 from .grouping_utils import create_group_feature_mapping
 from .group_feature_mapping import GroupFeatureMappingData
 
 
-# TODO: remove config from this module
-@dataclass
-class GroupingParameters:
-    """Configuration for grouping process."""
-    custom_groups: Optional[List[str]] = None
-    exclude_groups: Optional[List[str]] = None
-    min_features_per_group: int = 3
-
-
 def run_grouping(
     grouping_data: pd.DataFrame,
     group_feature_mappings: List[GroupFeatureMappingData],
-    logger,
-    params: Optional[GroupingParameters] = None
+    logger: logging.Logger
 ) -> List[GroupFeatureMappingData]:
     """
     Run the grouping process to organize features into their respective groups.
     
     Args:
         grouping_data: DataFrame with columns ['feature_id', 'group_name']
-        config: Optional GroupingConfig for customizing the process
+        group_feature_mappings: List of existing group-feature mappings
+        logger: Logger instance for tracking progress
     
     Returns:
         List[GroupFeatureMappingData]: Organized feature groups
@@ -53,37 +42,15 @@ def run_grouping(
     Raises:
         ValueError: If input validation fails
     """
-    logger.info("##### Starting grouping process #####")
+    logger.info("🔄 Starting grouping process...")
     
     try:
-        # Validate input data
         validate_grouping_data(grouping_data, logger)
         
-        # Create feature-to-group mapping
-        logger.info("Creating feature-group mappings...")
-        
-        # Filter groups based on config.custom_groups if specified
-        # Only keep groups that are in the custom_groups list
-        if params and params.custom_groups:
-            selected_feature_groups = [
-            group_mapping for group_mapping in group_feature_mappings 
-            if group_mapping.group_name in params.custom_groups
-            ]
-            group_feature_mappings = selected_feature_groups
-        
-        # Remove any groups specified in config.exclude_groups
-        if params and params.exclude_groups:
-            filtered_feature_groups = [
-            group_mapping for group_mapping in group_feature_mappings 
-            if group_mapping.group_name not in params.exclude_groups
-            ]
-            group_feature_mappings = filtered_feature_groups
-        
-        # Validate results
         if not group_feature_mappings:
-            raise ValueError("❌ No valid feature groups created")
+            raise ValueError("❌ No valid feature groups provided")
         
-        logger.info(f"✅ Successfully created {len(group_feature_mappings)} feature groups")
+        logger.info(f"✅ Successfully processed {len(group_feature_mappings)} feature groups")
         return group_feature_mappings
         
     except Exception as e:
@@ -91,21 +58,28 @@ def run_grouping(
         raise
 
 
-def validate_grouping_data(grouping_data: pd.DataFrame,
-                           logger) -> None:
+def validate_grouping_data(
+    grouping_data: pd.DataFrame,
+    logger: logging.Logger
+) -> None:
     """
     Validate the grouping data format and content.
     
     Args:
         grouping_data: DataFrame containing grouping configuration
+        logger: Logger instance for tracking validation
 
     Raises:
         ValueError: If validation fails
     """
-    # TODO: check required columns in grouping data
     
-    # Check for empty data 
     if grouping_data.empty:
         raise ValueError("❌ Grouping data is empty")
+        
+    #TODO: check here
+    # required_columns = ['feature_id', 'group_name']
+    # missing_cols = [col for col in required_columns if col not in grouping_data.columns]
+    # if missing_cols:
+    #     raise ValueError(f"❌ Missing required columns: {', '.join(missing_cols)}")
     
     logger.info("✅ Grouping data validation successful")

@@ -80,6 +80,7 @@ def run_modeling(
     predictions = predict(trained_model, data_test_x[available_features])
     metrics = calculate_metrics(data_test_y, 
                                 predictions, 
+                                y_pred_proba=None,
                                 logger=logger)
 
     # Update feature ranks based on model performance to be used in next iteration

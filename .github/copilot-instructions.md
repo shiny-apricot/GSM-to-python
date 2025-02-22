@@ -1,88 +1,200 @@
-# G-S-M Bioinformatics Data Pipeline Project
-# Purpose: Implementation of Grouping-Scoring-Modeling (GSM) pipeline for gene analysis
+# GSM Bioinformatics Pipeline Development Guide 🧬
 
-## Project Overview
-This project implements a modular data pipeline for bioinformatics analysis using the GSM approach:
-1. Load: Load and validate input data
-2. Filter: Preliminary gene filtering using t-test
-3. Group: Group genes based on gene-group coupling data
-4. Score: Evaluate groups using ML models
-5. Model: Train ML models on best-performing groups
-6. Predict: Generate predictions using trained models
+## Purpose
+This guide outlines the development standards for the Grouping-Scoring-Modeling (GSM) pipeline, designed for researchers with varying Python expertise levels.
 
-## Code Organization Principles
+## Pipeline Overview
+```
+Data → Filter → Group → Score → Model → Predict
+```
 
-### Architecture
-- Modular, file-based organization with clear separation of concerns
-- Function-first approach: prefer functions over classes
-- Use dataclasses for complex data structures
-- NEVER USE Dictionary or Tuple. Instead use dataclass. This makes code more understandable.
-- For methods taking more than 2 input parameter, create a config class for the inputs. Name the class as ...Parameters
-- Implementation order: skeleton → interfaces → concrete implementations. So do not write everything in one module or function, instead separate it into sub-modules.
-- Be simple and understandable so that it can be used and maintained by non-experts.
-    - Since my team is not familiar with Python, consider even the people who dont know Python very well.
+Each stage processes gene data sequentially, transforming raw input into actionable predictions.
 
-### Method Organization
-- Keep methods focused and concise
-- Extract complex logic into separate methods
-- Limit method nesting to 2-3 levels
-- Break down long methods into smaller, well-named functions
-- Use meaningful method names that describe their purpose
-- Follow the Single Responsibility Principle
-- Always take logger as parameters 
+## Core Development Principles
 
-### Code Style
-- Follow PEP 8 guidelines
-- Use descriptive names for variables, functions, and classes
-- Document all files with class/method summaries at the top
-- Include input/output examples in docstrings
-- When you give input parameters, always to use their names.
+### 1. Code Organization 🏗️
+- Write modular, single-responsibility components
+- Follow top-down development approach:
+  1. Start with main pipeline function (gsm_pipeline.py)
+  2. Implement major stage functions (filter.py, group.py, score.py, model.py)
+  3. Break down each stage into smaller helper functions
+  4. Create utility functions last
+- Prefer pure functions over classes
+- Use dataclasses for ALL data structures
+- NEVER use dictionaries, tuples, or named tuples - always use dataclasses instead
 
-### Best Practices
-- KISS principle: Keep implementations simple and focused
-- Functional programming where appropriate
-- Comprehensive error handling and logging
-- Unit tests for core functionality
+Example of top-down hierarchy:
+```python
+# Level 1: Main Pipeline (gsm_pipeline.py)
+def gsm_pipeline(input_data: GeneData, config: Config, logger: Logger) -> Results:
+    """Main pipeline orchestrating the entire GSM analysis."""
+    filtered_data = filter_genes(input_data, config, logger)
+    groups = group_genes(filtered_data, config, logger)
+    scores = score_groups(groups, config, logger)
+    return train_model(scores, config, logger)
 
-### Performance Guidelines
-- Use vectorized operations (numpy/pandas)
+# Level 2: Major Stage (group.py)
+def group_genes(filtered_data: FilteredData, config: Config, logger: Logger) -> list[GeneGroup]:
+    """Major stage function for gene grouping."""
+    normalized_data = normalize_expression(filtered_data)
+    clusters = perform_clustering(normalized_data)
+    return create_gene_groups(clusters)
+
+# Level 3: Helper Functions (grouping/cluster_utils.py)
+def perform_clustering(normalized_data: np.ndarray) -> np.ndarray:
+    """Helper function for specific clustering logic."""
+    # Implementation details
+```
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class GeneGroup:
+    name: str
+    genes: list[str]
+    score: float = 0.0
+```
+
+### 2. Code Clarity for Non-Python Experts
+- Write self-documenting code
+- Include detailed comments in plain English
+- Add visual separators for code sections
+```python
+##### DATA PREPROCESSING #####
+def preprocess_gene_data(data: GeneData, logger: Logger) -> ProcessedData:
+    """Transform raw gene data into analysis-ready format.
+    
+    Example:
+        raw_data = load_data("genes.csv")
+        processed = preprocess_gene_data(raw_data, logger)
+    """
+    logger.info("🔄 Starting data preprocessing...")
+```
+
+### 3. Function Design Rules
+- One function = one task
+- Maximum 20 lines per function
+- Maximum 2 levels of nesting
+- Always use type hints
+```python
+def calculate_gene_score(
+    gene_id: str,
+    expression_data: np.ndarray,
+    *,  # Force keyword arguments
+    threshold: float = 0.05,
+    logger: Logger
+) -> float:
+```
+
+### 4. Error Handling & Logging
+- Log all critical operations
+- Use custom exceptions for domain-specific errors
+```python
+class GeneAnalysisError(Exception):
+    """Base exception for gene analysis errors."""
+    pass
+
+def analyze_genes(genes: list[str], logger: Logger) -> GeneResults:
+    try:
+        logger.info(f"📊 Analyzing {len(genes)} genes...")
+        # Analysis code here
+    except ValueError as e:
+        logger.error(f"❌ Analysis failed: {str(e)}")
+        raise GeneAnalysisError(f"Gene analysis failed: {str(e)}")
+```
+
+### 5. Performance Optimization
+- Use numpy for numerical operations
 - Implement dask for large datasets
-- Profile code for optimization
-- Minimize memory usage with generators/iterators
+- Profile code regularly
+```python
+import dask.dataframe as dd
+
+def process_large_dataset(file_path: str) -> dd.DataFrame:
+    """Process gene expression data using dask for memory efficiency."""
+    return dd.read_csv(file_path).map_partitions(process_partition)
+```
 
 ## Project Structure
-src/
-├── filtering/ # Gene filtering logic
-├── grouping/ # Gene grouping implementation
-├── scoring/ # Group scoring algorithms
-├── modeling/ # ML model training
-├── machine_learning/ # Include machine learning tools
-├── feature_selection # FS Tools
-└── utils/ # Shared utilities
-data/
-├── grouping_data
-├── main_data
-├── test # Test data for a fast preliminary check
-tests/ # Python tests
+```
+gsm_pipeline/
+├── src/
+│   ├── filtering/       # T-test based filtering
+│   ├── grouping/        # Gene group analysis
+│   ├── scoring/         # ML-based scoring
+│   ├── modeling/        # Model training
+│   ├── ml_utils/        # ML helpers
+│   └── utils/           # Common utilities
+├── data/
+│   ├── raw/            # Input data
+│   └── processed/      # Analysis results
+└── tests/              # Test suites
+```
 
+## Documentation Standards
+
+### File Headers
+```python
+"""
+Gene Group Analysis Module 🧬
+
+Purpose:
+    Implements gene grouping algorithms based on expression patterns.
+
+Key Functions:
+    - group_genes(): Creates gene groups from expression data
+    - score_groups(): Evaluates group significance
+    - optimize_groups(): Refines group assignments
+
+Example Usage:
+    groups = group_genes(expression_data, logger)
+    scores = score_groups(groups, logger)
+"""
+```
+
+### Function Documentation
+```python
+def group_genes(
+    expression_data: np.ndarray,
+    *,
+    min_size: int = 10,
+    logger: Logger
+) -> list[GeneGroup]:
+    """Group genes based on expression patterns.
+
+    Args:
+        expression_data: Gene expression matrix (genes × samples)
+        min_size: Minimum genes per group (default: 10)
+        logger: Logger instance for tracking
+
+    Returns:
+        List of GeneGroup objects
+
+    Example:
+        >>> data = load_expression_data("data.csv")
+        >>> groups = group_genes(data, min_size=15, logger=logger)
+        >>> print(f"Found {len(groups)} gene groups")
+    """
+```
+
+## Testing Requirements
+- Write tests for all core functions
+- Include edge cases
+- Test with small datasets first
+```python
+def test_gene_grouping():
+    """Test gene grouping with a small dataset."""
+    test_data = load_test_data()
+    groups = group_genes(test_data, min_size=5, logger=test_logger)
+    assert len(groups) > 0, "Should create at least one group"
+    assert all(len(g.genes) >= 5 for g in groups), "Groups should meet size requirement"
+```
 
 ## Dependencies
-- pandas: Data manipulation
-- numpy: Numerical operations
-- scikit-learn: Machine learning
-- matplotlib/seaborn: Visualization
-- jupyter: Development environment
-- dask: Large dataset handling
-
-## Documentation
-- Maintain comprehensive docstrings
-- Include usage examples
-- Reference official library documentation
-- Document data structures and workflows
-- At the top of each file, include a summary of the file's purpose and functionality along with:
-  - File's primary purpose and role in the pipeline, briefly
-  - List of key functions/classes with brief descriptions
-  - Usage examples where appropriate
-  - Any important notes or caveats
-- Do not hesitate to use emojis or ##### type of separators in comments or logs.
-- Write documentations for NON-PYTHON researchers
+- pandas
+- numpy
+- scikit-learn
+- dask
+- matplotlib
+- seaborn

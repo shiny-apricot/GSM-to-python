@@ -135,6 +135,7 @@ def filter_by_pvalue(
                          if data.feature_names is not None else None)
 
         logger.info(f"✅ Selected {sum(significant_mask)} significant genes")
+        # TODO: mention about the p-value threshold
         if INITIAL_FEATURE_FILTER_SIZE > 0:
             logger.info(f"✅ Final selection: {sum(final_mask)} genes after size filter (INITIAL_FEATURE_FILTER_SIZE={INITIAL_FEATURE_FILTER_SIZE})")
         

@@ -16,6 +16,7 @@ Key Functions:
 
 import logging
 import sys
+import os
 from typing import Optional
 from config import LOGGING_LEVEL, LOGGING_FORMAT, LOGGING_OUTPUT_FILE
 
@@ -50,7 +51,15 @@ class ColoredFormatter(logging.Formatter):
 
 def setup_logger(log_file: Optional[str] = 'gsm_pipeline.log', 
                 level: int = logging.DEBUG) -> logging.Logger:
-    """Sets up the logger with colored console and file output."""
+    """Sets up the logger with colored console and file output.
+    
+    Args:
+        log_file: Full path or relative path for log file. Directories will be created if needed.
+        level: Logging level (default: logging.DEBUG)
+    
+    Returns:
+        Configured logger instance
+    """
     
     logger = logging.getLogger('gsm_pipeline')
     
@@ -71,6 +80,11 @@ def setup_logger(log_file: Optional[str] = 'gsm_pipeline.log',
 
     # File handler (no colors)
     if log_file:
+        # Create directory if it doesn't exist
+        log_dir = os.path.dirname(os.path.abspath(log_file))
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(level)
         file_formatter = logging.Formatter(

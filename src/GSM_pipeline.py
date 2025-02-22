@@ -1,4 +1,3 @@
-
 # TODO: Implement unit tests for gsm_run and gsm_main_loop functions
 # TODO: Optimize data preprocessing steps for large datasets using dask
 # TODO: Refactor gsm_main_loop to reduce complexity and improve readability
@@ -42,14 +41,17 @@ Notes:
 
 ##### Imports #####
 from math import exp
+from pathlib import Path
 from config import (INPUT_EXPRESSION_DATA, INPUT_GROUP_DATA, OUTPUT_DIR, 
                      RANDOM_SEED, CROSS_VALIDATION_FOLDS, NUMBER_OF_ITERATIONS, 
                      SAVE_INTERMEDIATE_RESULTS, TRAIN_TEST_SPLIT_RATIO, MODEL_NAME, LABEL_COLUMN_NAME, NORMALIZATION_METHOD,
                      CLASS_LABELS_NEGATIVE, CLASS_LABELS_POSITIVE, BEST_GROUPS_TO_KEEP)
 
 import pandas as pd
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import List, Optional
+import numpy as np
+import random
 
 from grouping import group_feature_mapping
 from grouping.grouping_utils import create_group_feature_mapping
@@ -64,87 +66,117 @@ from data_processing.preliminary_filtering import preliminary_ttest_filter
 from data_processing import TrainTestValSplitData
 from utils import save_results
 from grouping.grouping_utils import create_group_feature_mapping
+from utils.save_ranked_groups import save_ranked_groups
+from utils.logger import setup_logger  # Add this import at the top with other imports
+import time
+
 
 ##### Data Structures #####
 @dataclass
-class GSMConfig:
-    """Configuration parameters for the GSM pipeline.
-    
-    Attributes:
-        sample_ratio (float): Train/test split ratio (default: from config)
-        n_iteration_workflow (int): Number of GSM workflow iterations
-        model_name (str): ML model identifier
-        label_column_name (str): Column name containing class labels
-        normalization_method (str): Data normalization strategy
-    """
-    sample_ratio: float = TRAIN_TEST_SPLIT_RATIO
-    n_iteration_workflow: int = NUMBER_OF_ITERATIONS
-    model_name: str = MODEL_NAME
-    label_column_name: str = LABEL_COLUMN_NAME
-    normalization_method: str = NORMALIZATION_METHOD
+class IterationResult:
+    """Track results and metadata for each GSM iteration."""
+    iteration: int
+    random_seed: int
+    modeling_results: List[ModelingResult]
 
-##### Main Pipeline Functions #####
-def gsm_run(input_data: pd.DataFrame,
-            group_data: pd.DataFrame,
-            logger,
-            config: GSMConfig = GSMConfig(),
-            notebook_mode: bool = False) -> None:
+def gsm_run(
+    input_data: pd.DataFrame,
+    group_data: pd.DataFrame,
+    *,  # Force named parameters
+    sample_ratio: float = TRAIN_TEST_SPLIT_RATIO,
+    n_iterations: int = NUMBER_OF_ITERATIONS,
+    model_name: str = MODEL_NAME,
+    label_column: str = LABEL_COLUMN_NAME,
+    normalization_method: str = NORMALIZATION_METHOD,
+    initial_seed: int = 42,
+    logger_path: Optional[Path] = None,
+    notebook_mode: bool = False
+) -> None:
     """
     Main entry point for the GSM pipeline execution.
-
-    Workflow:
-    1. Data preprocessing and normalization
-    2. Group data preparation
-    3. Iterative GSM workflow execution
     
     Args:
         input_data: Gene expression matrix (samples × genes)
         group_data: Gene grouping information
-        logger: Logging interface for pipeline tracking
-        config: Pipeline configuration parameters
+        sample_ratio: Train/test split ratio
+        n_iterations: Number of GSM workflow iterations
+        model_name: Selected ML model identifier
+        label_column: Column name containing class labels
+        normalization_method: Data normalization strategy
+        initial_seed: Starting seed for reproducibility
+        logger_path: Path where log files will be stored
         notebook_mode: Enable notebook-specific optimizations
-
-    Notes:
-        - Implements comprehensive error logging
-        - Supports intermediate result saving
-        - Handles both positive/negative class labels
     """
-    logger = logger.setup_logger()
+    output_folder_path = Path(OUTPUT_DIR) / time.strftime("%Y%m%d-%H%M%S")        
+    output_folder_path.mkdir(parents=True, exist_ok=True)
+    if logger_path is None:
+        logger_path = output_folder_path / "gsm_pipeline.log"
+
+    logger = setup_logger(str(logger_path))
     logger.info("🚀 Starting GSM pipeline...")
 
     # Run the GSM pipeline
     logger.info("Start data preprocessing.")
-    data_preprocessed_train, data_preprocessed_test = preprocess_data(input_data,
-                                        config.label_column_name,
-                                        logger=logger,
-                                        label_of_negative_class=CLASS_LABELS_NEGATIVE,
-                                        label_of_positive_class=CLASS_LABELS_POSITIVE,
-                                        normalization_method=config.normalization_method)
+    data_preprocessed_train, data_preprocessed_test = preprocess_data(
+        input_data,
+        label_column,
+        logger=logger,
+        label_of_negative_class=CLASS_LABELS_NEGATIVE,
+        label_of_positive_class=CLASS_LABELS_POSITIVE,
+        normalization_method=normalization_method
+    )
     logger.info("Data preprocessing completed.")
     
     group_data_processed = preprocess_grouping_data(group_data, logger=logger)
     logger.info("Grouping data preprocessing completed.")
     
-    modeling_result_list : List[List[ModelingResult]] = []
-    for i in range(config.n_iteration_workflow):    
+    iteration_results: List[IterationResult] = []
+    # Changed from range(n_iterations) to range(1, n_iterations + 1)
+    # This ensures that for n_iterations=1, it only runs once
+    for i in range(1, n_iterations + 1):    
         logger.info(f"Iteration {i} for gsm_main_loop started...")
-        modeling_result = gsm_main_loop(data_preprocessed_train, group_data_processed, config.model_name, logger)
-        modeling_result_list.append(modeling_result)
+        
+        iteration_seed = generate_iteration_seed(initial_seed, i)
+        set_random_seed(iteration_seed, logger)
+        
+        modeling_result = gsm_main_loop(
+            data=data_preprocessed_train, 
+            grouping_data=group_data_processed, 
+            model_name=model_name,
+            output_dir=output_folder_path,
+            iteration=i,
+            logger=logger
+        )
+        
+        iteration_results.append(IterationResult(
+            iteration=i,
+            random_seed=iteration_seed,
+            modeling_results=modeling_result
+        ))
         logger.info(f"Iteration {i} for gsm_main_loop completed.")
 
-    # Save intermediate results if enabled
+    # Save results
     if SAVE_INTERMEDIATE_RESULTS:
         logger.info("Saving intermediate results...")
-        result_saver = save_results.ResultSaver(base_dir=str(OUTPUT_DIR), 
-                                                create_timestamp_subdir=True,
-                                                logger=logger)
-        result_saver.save_modeling_results(modeling_result_list, "modeling_results")
+        save_results.save_modeling_results(
+            results=[r.modeling_results for r in iteration_results],
+            iteration_metadata=[save_results.IterationMetadata(
+                iteration=r.iteration,
+                random_seed=r.random_seed
+            ) for r in iteration_results],
+            output_dir=str(output_folder_path),
+            experiment_name="modeling_results",
+            logger=logger
+        )
         logger.info("Intermediate results saved.")
     logger.info("GSM pipeline completed successfully.")
 
+##### Main Pipeline Functions #####
 def gsm_main_loop(data: pd.DataFrame, 
                   grouping_data: pd.DataFrame,
                   model_name: str, 
+                  output_dir: Path,
+                  iteration: int,
                   logger) -> List[ModelingResult]:
     """
     Executes one complete iteration of the GSM workflow.
@@ -179,6 +211,7 @@ def gsm_main_loop(data: pd.DataFrame,
     filtered_train = preliminary_ttest_filter(train_test_split_data.X_train, 
                                         train_test_split_data.y_train,
                                         logger=logger)
+    # TODO: Filter training data based on selected features
     logger.info("Preliminary filtering completed.")
 
     # Gene Grouping
@@ -192,11 +225,17 @@ def gsm_main_loop(data: pd.DataFrame,
     # Group Scoring
     logger.info("📈 Evaluating group performance...")
     # Get the ranked groups based on F1 score in descending order
-    ranked_groups= run_scoring(data_x=train_test_split_data.X_train, 
-                               labels=train_test_split_data.y_train,
-                               model_name=model_name, 
-                               groups=grouping_result_object,
-                               logger=logger)
+    scoring_results = run_scoring(data_x=train_test_split_data.X_train, 
+                                labels=train_test_split_data.y_train,
+                                model_name=model_name, 
+                                groups=grouping_result_object,
+                                output_dir=output_dir,
+                                iteration=iteration,
+                                logger=logger)
+
+    # Get ranked groups from scoring results
+    ranked_groups = scoring_results.ranked_groups
+
     logger.info("Scoring completed.")
 
     # Model Training
@@ -219,3 +258,13 @@ def gsm_main_loop(data: pd.DataFrame,
 
     logger.info("Modeling completed successfully.")
     return modeling_result_list
+
+def generate_iteration_seed(initial_seed: int, iteration: int) -> int:
+    """Generate a deterministic seed for each iteration based on initial seed."""
+    return initial_seed + (iteration * 1000)
+
+def set_random_seed(seed: int, logger) -> None:
+    """Set random seed for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    logger.info(f"Random seed set to: {seed}")

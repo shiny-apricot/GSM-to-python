@@ -5,6 +5,10 @@ ARCHIVE/
 .cursorrules
 output/
 
+data/grouping_data/*
+data/main_data
+data/test
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

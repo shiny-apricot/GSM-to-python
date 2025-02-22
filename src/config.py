@@ -57,7 +57,7 @@ SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', '
 
 RANDOM_SEED = 44
 CROSS_VALIDATION_FOLDS = 5
-NUMBER_OF_ITERATIONS = 1
+NUMBER_OF_ITERATIONS = 3
 SAVE_INTERMEDIATE_RESULTS = True
 
 # ============================================================================

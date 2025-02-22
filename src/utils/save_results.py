@@ -1,255 +1,195 @@
 """
 🗂️ Result Saving Utility Module
 
-This module provides functionality for saving various types of analysis results
-from the GSM pipeline, including:
-- DataFrame results (CSV, Excel)
-- Model artifacts (pickle)
-- Visualization plots
-- Analysis metadata (JSON)
-
-Key Classes:
-    - ResultSaver: Main class handling save operations
-
-Usage Example:
-    saver = ResultSaver(base_dir="results/experiment_1", create_timestamp_subdir=True)
-    saver.save_dataframe(df, "filtered_genes", include_timestamp=True)
+Purpose:
+    Save GSM pipeline results in both detailed and summary formats.
+    Provides simple statistics in Excel for easy review.
 """
 
-import os
-import json
 import logging
-from datetime import datetime
 from pathlib import Path
-from dataclasses import asdict
-from typing import List, Union, Optional, Dict, Any
-
+from typing import List, Dict, Any
+import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-import seaborn as sns
-from joblib import dump
+from dataclasses import asdict, dataclass
+import json
+
 from modeling.run_modeling import ModelingResult
-import config
 
-class ResultSaver:
-    """Handles saving of various analysis results with error handling and logging."""
+@dataclass
+class IterationMetadata:
+    """Metadata for a single iteration of the modeling process."""
+    iteration: int
+    random_seed: int
+
+def setup_save_directory(base_dir: Path, logger: logging.Logger) -> Path:
+    """Create and verify the save directory."""
+    try:
+        base_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"📁 Created results directory: {base_dir}")
+        return base_dir
+    except Exception as e:
+        logger.error(f"❌ Failed to create directory: {str(e)}")
+        raise
+
+def create_modeling_statistics_all_iterations_df(results: List[List[ModelingResult]]) -> pd.DataFrame:
+    """Convert modeling results into a simple statistics DataFrame."""
+    stats_data = []
     
-    def __init__(
-        self,
-        base_dir: str,
-        create_timestamp_subdir: bool = True,
-        file_timestamp: bool = False,
-        compression: Optional[str] = None,
-        logger: Optional[logging.Logger] = None
-    ):
-        """
-        Initialize ResultSaver with parameters.
-        
-        Args:
-            base_dir (str): Base directory for saving results
-            create_timestamp_subdir (bool): Whether to create timestamped subdirectory
-            file_timestamp (bool): Whether to add timestamps to filenames
-            compression (Optional[str]): Compression format for saved files
-        """
-        self.base_dir = base_dir
-        self.create_timestamp_subdir = create_timestamp_subdir
-        self.file_timestamp = file_timestamp
-        self.compression = compression
-        self.logger = logger or logging.getLogger(__name__)
-        self._setup_directories()
-        
-    def _setup_directories(self) -> None:
-        """Create necessary directories for saving results."""
-        try:
-            if self.create_timestamp_subdir:
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                self.save_dir = Path(self.base_dir) / timestamp
-            else:
-                self.save_dir = Path(self.base_dir)
-            
-            self.save_dir.mkdir(parents=True, exist_ok=True)
-            self.logger.info(f"📁 Created results directory: {self.save_dir}")
-        except Exception as e:
-            self.logger.error(f"❌ Failed to create directories: {str(e)}")
-            raise
+    for iteration_idx, result_group in enumerate(results):
+        for group_idx, result in enumerate(result_group):
+            stats_data.append({
+                'Iteration': iteration_idx + 1,
+                'Group Count': len(result_group) - group_idx,
+                'Feature Count': len(result.features),
+                'Accuracy': result.metrics.accuracy,
+                'Precision': result.metrics.precision,
+                'Recall': result.metrics.recall,
+                # 'F1 Score': result.metrics.f1_score,
+                # 'AUC': result.metrics.auc
+            })
+    
+    return pd.DataFrame(stats_data)
 
-    def _get_filename(self, name: str, extension: str) -> str:
-        """Generate filename with optional timestamp."""
-        if self.file_timestamp:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            return f"{name}_{timestamp}.{extension}"
-        return f"{name}.{extension}"
+def create_modeling_statistics_averaged_df(results: List[List[ModelingResult]]) -> pd.DataFrame:
+    """Calculate average statistics across all iterations for each group count.
+    
+    Args:
+        results: Nested list of modeling results per iteration
+    
+    Returns:
+        DataFrame with averaged metrics per group count
+    """
+    # First, collect all results by group count
+    stats_by_group_count = {}
+    
+    for iteration_results in results:
+        for group_idx, result in enumerate(iteration_results):
+            group_count = len(iteration_results) - group_idx
+            if group_count not in stats_by_group_count:
+                stats_by_group_count[group_count] = []
+            
+            stats_by_group_count[group_count].append({
+                'Feature Count': len(result.features),
+                'Accuracy': result.metrics.accuracy,
+                'Precision': result.metrics.precision,
+                'Recall': result.metrics.recall,
+                # 'F1 Score': result.metrics.f1_score,
+                # 'AUC': result.metrics.auc
+            })
+    
+    # Calculate averages for each group count
+    averaged_stats = []
+    for group_count, stats_list in stats_by_group_count.items():
+        avg_stats = {
+            'Group Count': group_count,
+            'Feature Count': sum(s['Feature Count'] for s in stats_list) / len(stats_list),
+            'Accuracy': sum(s['Accuracy'] for s in stats_list) / len(stats_list),
+            'Precision': sum(s['Precision'] for s in stats_list) / len(stats_list),
+            'Recall': sum(s['Recall'] for s in stats_list) / len(stats_list),
+            # 'F1 Score': sum(s['F1 Score'] for s in stats_list) / len(stats_list),
+            # 'AUC': sum(s['AUC'] for s in stats_list) / len(stats_list),
+            'Std Accuracy': np.std([s['Accuracy'] for s in stats_list]),
+            'Std Precision': np.std([s['Precision'] for s in stats_list]),
+            'Std Recall': np.std([s['Recall'] for s in stats_list]),
+            # 'Std F1 Score': np.std([s['F1 Score'] for s in stats_list]),
+            # 'Std AUC': np.std([s['AUC'] for s in stats_list])
+        }
+        averaged_stats.append(avg_stats)
+    
+    # Sort by group count descending
+    averaged_stats.sort(key=lambda x: x['Group Count'], reverse=True)
+    return pd.DataFrame(averaged_stats)
 
-    def save_dataframe(
-        self,
-        df: pd.DataFrame,
-        name: str,
-        file_format: str = "csv",
-        **kwargs
-    ) -> Path:
-        """
-        Save DataFrame to file.
-        
-        Args:
-            df (pd.DataFrame): DataFrame to save
-            name (str): Base name for the file
-            format (str): Format to save ('csv' or 'excel')
-            **kwargs: Additional arguments for pandas save functions
-            
-        Returns:
-            Path: Path to saved file
-        """
-        try:
-            filepath = self.save_dir / self._get_filename(name, file_format)
-            
-            if file_format == "csv":
-                if self.compression:
-                    kwargs['compression'] = self.compression
-                df.to_csv(filepath, **kwargs)
-            elif format == "excel":
-                df.to_excel(filepath, **kwargs)
-            
-            self.logger.info(f"💾 Saved DataFrame to {filepath}")
-            return filepath
-        except Exception as e:
-            self.logger.error(f"❌ Failed to save DataFrame: {str(e)}")
-            raise
+def adjust_column_width(worksheet):
+    """Adjust column widths to fit content."""
+    for column in worksheet.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2) * 1.2
+        worksheet.column_dimensions[column_letter].width = adjusted_width
 
-    def save_plot(
-        self,
-        name: str,
-        dpi: int = 300,
-        file_format: str = 'png',
-        fig: Optional[Figure] = None,
-        **kwargs
-    ) -> Path:
-        """
-        Save current matplotlib figure or specified figure.
-        
-        Args:
-            name (str): Base name for the plot file
-            dpi (int): DPI for the saved image
-            format (str): Image format ('png', 'pdf', etc.)
-            fig (Optional[plt.Figure]): Specific figure to save
-            **kwargs: Additional arguments for plt.savefig
-        
-        Returns:
-            Path: Path to saved plot
-        """
-        filepath = self.save_dir / self._get_filename(name, file_format)
+def save_modeling_results(
+    results: List[List[ModelingResult]],
+    iteration_metadata: List[IterationMetadata],
+    output_dir: str,
+    experiment_name: str,
+    logger: logging.Logger
+) -> None:
+    """
+    Save modeling results in both detailed and summary formats.
+    
+    Args:
+        results: Nested list of modeling results
+        iteration_metadata: List of metadata for each iteration
+        output_dir: Directory to save results
+        experiment_name: Name prefix for output files
+        logger: Logger instance
+    """
+    output_path = Path(output_dir)
+    setup_save_directory(output_path, logger)
+    
+    try:
+        # Save detailed results
+        for iteration_idx, result_group in enumerate(results):
+            metadata = asdict(iteration_metadata[iteration_idx])
             
-        if fig is None:
-            fig = plt.gcf()
-        
-        fig.savefig(str(filepath), dpi=dpi, format=format, **kwargs)
-        self.logger.info(f"📊 Saved plot to {filepath}")
-        return filepath
-
-    def save_model(self, model: Any, name: str) -> Path:
-        """
-        Save machine learning model using joblib.
-        
-        Args:
-            model: Trained model to save
-            name (str): Base name for the model file
+            # Create results dictionary with just the basic metadata
+            results_dict = {
+                'metadata': {
+                    'iteration': metadata['iteration'],
+                    'random_seed': metadata['random_seed']
+                },
+                'results': {}
+            }
             
-        Returns:
-            Path: Path to saved model
-        """
-        try:
-            filepath = self.save_dir / self._get_filename(name, "joblib")
-            dump(model, filepath)
-            self.logger.info(f"🤖 Saved model to {filepath}")
-            return filepath
-        except Exception as e:
-            self.logger.error(f"❌ Failed to save model: {str(e)}")
-            raise
-
-    def save_metadata(self, metadata: Dict[str, Any], name: str) -> Path:
-        """
-        Save metadata dictionary as JSON.
-        
-        Args:
-            metadata (Dict[str, Any]): Metadata to save
-            name (str): Base name for the metadata file
-            
-        Returns:
-            Path: Path to saved metadata
-        """
-        try:
-            filepath = self.save_dir / self._get_filename(name, "json")
-            with open(filepath, 'w') as f:
-                json.dump(metadata, f, indent=2)
-            self.logger.info(f"📝 Saved metadata to {filepath}")
-            return filepath
-        except Exception as e:
-            self.logger.error(f"❌ Failed to save metadata: {str(e)}")
-            raise
-
-
-    def save_modeling_results(self, 
-                            results: List[List[ModelingResult]], 
-                            experiment_name: str) -> List[List[Dict[str, Path]]]:
-        """
-        Save all components of modeling results including metrics, groups and features
-        into single combined files for each model iteration.
-        
-        Args:
-            results (List[List[ModelingResult]]): Nested list of modeling results to save
-            experiment_name (str): Base name of the experiment for file naming
-            
-        Returns:
-            List[List[Dict[str, Path]]]: Nested list of dictionaries containing saved file paths
-        """
-        # TODO: Save data descriptions and config.py file
-        try:
-            saved_paths_list = []
-            
-            for outer_idx, result_group in enumerate(results):
-                group_paths = []
-                
-                for inner_idx, result in enumerate(result_group):
-                    saved_paths = {}
-                    suffix = f"{experiment_name}_{outer_idx+1}_{inner_idx+1}"
-                    
-                    # Combine metrics, groups and features into single result data
-                    combined_data = {
-                        'metrics': asdict(result.metrics),
-                        'groups': result.groups,
-                        'features': result.features
-                    }
-                    
-                    # # Save combined results
-                    # result_path = self.save_metadata(
-                    #     combined_data,
-                    #     f"{suffix}_results"
-                    # )
-                    # saved_paths['results'] = result_path
-                    
-                    # group_paths.append(saved_paths)
-                
-                # Combine all results for this group into one file
-                combined_group_results = {
-                    f"group_count_{len(result_group)-i}": {
-                        'metrics': asdict(result.metrics),
-                        'number_of_groups': len(result.groups),
-                        'number_of_features': len(result.features),
-                        'groups': result.groups,
-                        'features': result.features
-                    }
-                    for i, result in enumerate(result_group)
+            # Add each group's results
+            for idx, result in enumerate(result_group):
+                group_key = f"group_count_{len(result_group)-idx}"
+                results_dict['results'][group_key] = {
+                    'metrics': asdict(result.metrics),
+                    'groups': result.groups,
+                    'features': result.features
                 }
-
-                combined_path = self.save_metadata(
-                    combined_group_results,
-                    f"{experiment_name}_{outer_idx+1}_combined_results"
-                )
-                
-                saved_paths_list.append(group_paths)
             
-            return saved_paths_list
-                
-        except Exception as e:
-            self.logger.error(f"❌ Failed to save modeling results: {str(e)}")
-            raise
+            # Save to JSON file using json module instead of pandas
+            output_file = output_path / f"{experiment_name}_iteration_{iteration_idx+1}_results.json"
+            with open(output_file, 'w') as f:
+                json.dump(results_dict, f, indent=2)
+
+            logger.info(f"📊 Saved results for iteration {iteration_idx+1}")
+
+        # Create and save statistics summary
+        stats_df = create_modeling_statistics_all_iterations_df(results)
+        avg_stats_df = create_modeling_statistics_averaged_df(results)
+        excel_path = output_path / f"{experiment_name}_statistics.xlsx"
+        
+        with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+            # Summary statistics for all iterations
+            stats_df.to_excel(writer, sheet_name='All Iterations', index=False)
+            adjust_column_width(writer.sheets['All Iterations'])
+            
+            # Averaged statistics across iterations
+            avg_stats_df.to_excel(writer, sheet_name='Averaged Results', index=False)
+            adjust_column_width(writer.sheets['Averaged Results'])
+            
+            # Aggregated statistics by iteration
+            agg_by_iteration = stats_df.groupby('Iteration').agg({
+                'Accuracy': ['mean', 'std'],
+                'Precision': ['mean', 'std'],
+                'Recall': ['mean', 'std']
+            }).round(4)
+            agg_by_iteration.to_excel(writer, sheet_name='By Iteration')
+            adjust_column_width(writer.sheets['By Iteration'])
+        
+        logger.info(f"📊 Saved statistics summary to {excel_path}")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to save results: {str(e)}")
+        raise

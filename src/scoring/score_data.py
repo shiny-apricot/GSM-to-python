@@ -31,6 +31,7 @@ from sklearn.metrics import make_scorer, f1_score, precision_score, recall_score
 @dataclass
 class ScoringParameters:
     """Configuration parameters for scoring gene groups."""
+    group_name: str
     data_x: pd.DataFrame
     labels: pd.Series
     classifier_name: str
