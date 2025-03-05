@@ -81,12 +81,11 @@ You can find an example Jupyter notebook in `src/main.ipynb` that demonstrates h
   - Any important notes or caveats
 
 ## Contributing
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature-branch`)
-3. Make your changes
-4. Commit your changes (`git commit -am 'Add new feature'`)
-5. Push to the branch (`git push origin feature-branch`)
-6. Create a new Pull Request
+1. Create a new branch (`git checkout -b feature-branch`)
+2. Make your changes
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature-branch`)
+5. Create a new Pull Request
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for more details.
