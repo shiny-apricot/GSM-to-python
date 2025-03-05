@@ -4,8 +4,8 @@ Main scoring module for the GSM pipeline.
 This module coordinates feature and group scoring operations.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
@@ -17,7 +17,7 @@ from utils.save_ranked_groups import save_ranked_groups
 from .score_data import ScoringParameters, score_data
 from .metrics import MetricsData, rank_by_score
 from .feature_scorer import score_features, FeatureScore
-from grouping.group_feature_mapping import GroupFeatureMappingData
+from grouping.grouping_utils import GroupFeatureMappingData
 
 
 @dataclass
@@ -25,7 +25,7 @@ class ScoringResults:
     """Container for all scoring results."""
     ranked_groups: List[MetricsData]
     feature_scores: List[FeatureScore]
-    group_feature_mapping: dict[str, List[str]]
+    group_feature_mapping: Dict[str, List[str]] = field(default_factory=dict)
 
 
 def run_scoring(
@@ -46,6 +46,7 @@ def run_scoring(
         model_name: Name of the model to use
         groups: Group assignments
         output_dir: Directory to save results
+        iteration: Current iteration number
         logger: Logger instance
         
     Returns:
@@ -57,14 +58,31 @@ def run_scoring(
         
         # Process groups
         processed_group_scores = []
-        group_features = {}  # Track features per group
-        
+        group_features: Dict[str, List[str]] = {}  # Track features per group
+
+        logger.info("#" * 50)
+        logger.info("🔍 Found the following groups:"
+                    f"{[group.group_name for group in groups]}")
+        logger.info(f"🔍 Found {len(feature_scores)} features in the dataset")
+        logger.info(f"🔍 Found {len(groups)} groups in the dataset")
+        logger.info(f"🔍 Found {len(data_x)} samples in the dataset")
+        logger.info(f"🔍 Found {len(data_x.columns)} features in the dataset")
+        logger.info(f"🔍 Found {len(labels.unique())} unique labels in the dataset")
+        logger.info(f"🔍 Found {len(groups)} groups in the dataset")
+
         logger.info("🔄 Starting group scoring process...")
         for current_group in tqdm(groups, desc="📊 Scoring groups"):
-            available_features = [
-                feature for feature in current_group.feature_list 
-                if feature in data_x.columns
-            ]
+            # Try to match features by normalizing both lists (convert to lowercase)
+            feature_map = {col.lower(): col for col in data_x.columns}
+            available_features = []
+            
+            for feature in current_group.feature_list:
+                if feature in data_x.columns:
+                    available_features.append(feature)
+                elif feature.lower() in feature_map:
+                    available_features.append(feature_map[feature.lower()])
+            
+            logger.info(f"🔍 Scoring group: {current_group.group_name}... Found {len(available_features)} valid features for scoring")
             
             if not available_features:
                 logger.warning(f"⚠️ Skipping group with no valid features: {current_group.group_name}")
@@ -86,11 +104,17 @@ def run_scoring(
             current_score.name = current_group.group_name
             processed_group_scores.append(current_score)
         
-        ranked_groups = rank_by_score(
-            metrics_list=processed_group_scores,
-            score_type="f1",
-            logger=logger
-        )
+        # Check if we have any valid group scores before ranking
+        if not processed_group_scores:
+            logger.warning("⚠️ No valid groups to rank - all groups were skipped due to missing features")
+            ranked_metrics = []
+        else:
+            ranked_groups = rank_by_score(
+                metrics_list=processed_group_scores,
+                score_type="f1",
+                logger=logger
+            )
+            ranked_metrics = ranked_groups.metrics
 
         # Save results
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -99,8 +123,8 @@ def run_scoring(
         groups_output = output_dir / f"ranked_groups_iteration_{iteration}.xlsx"
         save_ranked_groups(
             str(groups_output),
-            ranked_groups.metrics,
-            iteration=1,  # You might want to make this configurable
+            ranked_metrics,
+            iteration=iteration,
             logger=logger
         )
 
@@ -115,7 +139,7 @@ def run_scoring(
         save_ranked_features(ranking_output, logger)
         
         return ScoringResults(
-            ranked_groups=ranked_groups.metrics,
+            ranked_groups=ranked_metrics,
             feature_scores=feature_scores,
             group_feature_mapping=group_features
         )

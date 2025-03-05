@@ -1,4 +1,4 @@
-geneSymbol	diseaseName
+feature_id	group_name
 A1BG	Glioblastoma
 A1BG	Meningioma
 A1BG	Subependymal Giant Cell Astrocytoma

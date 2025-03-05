@@ -1,9 +1,6 @@
 # TODO: Implement unit tests for gsm_run and gsm_main_loop functions
-# TODO: Optimize data preprocessing steps for large datasets using dask
-# TODO: Refactor gsm_main_loop to reduce complexity and improve readability
 # TODO: Add support for additional ML models in the modeling stage
 # TODO: Add functionality to visualize intermediate results and final outputs
-# TODO: Document each function with comprehensive docstrings and usage examples
 
 """
 🧬 GSM_pipeline.py - Main Pipeline Implementation for Gene Analysis
@@ -53,8 +50,8 @@ from typing import List, Optional
 import numpy as np
 import random
 
-from grouping import group_feature_mapping
-from grouping.grouping_utils import create_group_feature_mapping
+# Updated imports to use correct module paths
+from grouping.grouping_utils import create_group_feature_mapping, GroupFeatureMappingData
 from grouping.run_grouping import run_grouping
 from scoring.run_scoring import run_scoring
 from modeling.run_modeling import ModelingResult, run_modeling
@@ -65,7 +62,6 @@ from data_processing.train_test_splitter import split_data
 from data_processing.preliminary_filtering import preliminary_ttest_filter
 from data_processing import TrainTestValSplitData
 from utils import save_results
-from grouping.grouping_utils import create_group_feature_mapping
 from utils.save_ranked_groups import save_ranked_groups
 from utils.logger import setup_logger  # Add this import at the top with other imports
 import time
@@ -107,7 +103,7 @@ def gsm_run(
         logger_path: Path where log files will be stored
         notebook_mode: Enable notebook-specific optimizations
     """
-    output_folder_path = Path(OUTPUT_DIR) / time.strftime("%Y%m%d-%H%M%S")        
+    output_folder_path = Path(OUTPUT_DIR) / time.strftime("%Y_%m_%d-%H_%M_%S")        
     output_folder_path.mkdir(parents=True, exist_ok=True)
     if logger_path is None:
         logger_path = output_folder_path / "gsm_pipeline.log"
@@ -134,8 +130,10 @@ def gsm_run(
     # Changed from range(n_iterations) to range(1, n_iterations + 1)
     # This ensures that for n_iterations=1, it only runs once
     for i in range(1, n_iterations + 1):    
+        logger.info(f"=" * 50)
         logger.info(f"Iteration {i} for gsm_main_loop started...")
         
+        # Set random seed for reproducibility
         iteration_seed = generate_iteration_seed(initial_seed, i)
         set_random_seed(iteration_seed, logger)
         
@@ -171,6 +169,8 @@ def gsm_run(
         logger.info("Intermediate results saved.")
     logger.info("GSM pipeline completed successfully.")
 
+    
+
 ##### Main Pipeline Functions #####
 def gsm_main_loop(data: pd.DataFrame, 
                   grouping_data: pd.DataFrame,
@@ -192,6 +192,8 @@ def gsm_main_loop(data: pd.DataFrame,
         data: Preprocessed expression data
         grouping_data: Processed group definitions
         model_name: Selected ML model identifier
+        output_dir: Directory to save results
+        iteration: Current iteration number
         logger: Pipeline logging interface
 
     Technical Notes:
@@ -211,50 +213,53 @@ def gsm_main_loop(data: pd.DataFrame,
     filtered_train = preliminary_ttest_filter(train_test_split_data.X_train, 
                                         train_test_split_data.y_train,
                                         logger=logger)
-    # TODO: Filter training data based on selected features
     logger.info("Preliminary filtering completed.")
 
-    # Gene Grouping
+    # Gene Grouping - Fixed to use the proper function from grouping_utils
     logger.info("🔗 Running gene grouping analysis...")
-    group_feature_mapping_data = create_group_feature_mapping(grouping_data)
-    grouping_result_object = run_grouping(grouping_data, 
-                                          group_feature_mappings= group_feature_mapping_data,
-                                          logger=logger)
+
+    group_feature_mappings = run_grouping(grouping_data, 
+                                  logger=logger)
+    
     logger.info("Grouping completed.")
 
     # Group Scoring
     logger.info("📈 Evaluating group performance...")
-    # Get the ranked groups based on F1 score in descending order
     scoring_results = run_scoring(data_x=train_test_split_data.X_train, 
                                 labels=train_test_split_data.y_train,
                                 model_name=model_name, 
-                                groups=grouping_result_object,
+                                groups=group_feature_mappings,
                                 output_dir=output_dir,
                                 iteration=iteration,
                                 logger=logger)
 
     # Get ranked groups from scoring results
     ranked_groups = scoring_results.ranked_groups
-
     logger.info("Scoring completed.")
 
-    # Model Training
+    # Model Training with decreasing numbers of top groups
     logger.info("🤖 Training and evaluating models...")
-    # Start by using BEST_GROUPS_TO_KEEP number of groups,
-    # Then decrease the number of groups iteratively
     modeling_result_list = []
+    
+    # Start with BEST_GROUPS_TO_KEEP groups and decrease to 1
     for i in range(BEST_GROUPS_TO_KEEP, 0, -1):
         logger.info(f"Training model with top {i} groups...")
-        modeling_result = run_modeling(data_train_x=train_test_split_data.X_train, 
-                                       data_train_y=train_test_split_data.y_train,
-                                       data_test_x=train_test_split_data.X_test,
-                                       data_test_y=train_test_split_data.y_test,
-                                       group_ranks=ranked_groups[:i],
-                                       group_feature_mapping=group_feature_mapping_data,
-                                       model_name=model_name, 
-                                       logger=logger)
+        
+        # Run modeling with decreasing number of top groups
+        modeling_result = run_modeling(
+            data_train_x=train_test_split_data.X_train,
+            data_train_y=train_test_split_data.y_train, 
+            data_test_x=train_test_split_data.X_test,
+            data_test_y=train_test_split_data.y_test,
+            group_ranks=ranked_groups,
+            group_feature_mapping=group_feature_mappings,
+            model_name=model_name,
+            top_n_groups=i,  # Use i top groups
+            logger=logger
+        )
         modeling_result_list.append(modeling_result)
-        logger.info(f"Modeling with top {i} groups completed")
+        
+        logger.info(f"✅ Model with top {i} groups - F1 score: {modeling_result.f1_score:.4f}")
 
     logger.info("Modeling completed successfully.")
     return modeling_result_list

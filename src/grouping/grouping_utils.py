@@ -1,79 +1,113 @@
 """
-Utility functions for the grouping module.
+🧬 Grouping Utilities Module 🧬
 
-This module provides helper functions for:
-- Creating feature-to-group mappings
-- Extracting group-specific data
-- Data transformation and validation
+This module provides data structures and utility functions for feature grouping operations.
+
+Key Data Structures:
+------------------
+- GroupFeatureMappingData: Maps groups to features and vice versa
+
+Key Functions:
+-------------
+- create_group_feature_mapping: Creates mapping between groups and their features
+
+Example Usage:
+------------
+>>> grouping_data = pd.read_csv('disease_gene_associations.csv')
+>>> group_mappings = create_group_feature_mapping(grouping_data)
+>>> print(f"Created {len(group_mappings)} feature groups")
 """
-from typing import List, Tuple
+
 import pandas as pd
+import logging
+from typing import List, Optional
+from dataclasses import dataclass, field
+from config import GROUP_COLUMN_NAME, GENE_COLUMN_NAME
 
-from config import GROUP_COLUMN_NAME, GENE_COLUMN_NAME, LABEL_COLUMN_NAME
-from .group_feature_mapping import GroupFeatureMappingData
 
-def create_group_feature_mapping(grouping_data: pd.DataFrame) -> List[GroupFeatureMappingData]:
+@dataclass
+class GroupFeatureMappingData:
     """
-    Create feature-group mappings from input data.
-
-    Args:
-        grouping_data: DataFrame containing feature-group mapping information
-            Must have columns: 'feature_name' and 'group_name'
-
-    Returns:
-        List of FeatureGroupMapping objects
-
-    Raises:
-        ValueError: If required columns are missing in the input DataFrame
-
-    Example:
-        >>> grouping_data = pd.DataFrame({
-        ...     'gene': ['f1', 'f2'], 
-        ...     'group': ['g1', 'g2']
-        ... })
-        >>> mappings = create_feature_group_mapping(grouping_data)
-        >>> print(mappings[0])
-        GroupFeatureMapping(group_name='g1', feature_list=['f1'])
-    """
-    # Check for required columns
-    required_columns = [GENE_COLUMN_NAME, GROUP_COLUMN_NAME]
-    for col in required_columns:
-        if col not in grouping_data.columns:
-            raise ValueError(f"Missing required column: {col}")
-
-    # Create a dictionary to hold features for each group
-    group_mapping = {}
-    for _, row in grouping_data.iterrows():
-        group_name = row[GROUP_COLUMN_NAME]
-        feature_name = row[GENE_COLUMN_NAME]
-        if group_name not in group_mapping:
-            group_mapping[group_name] = []
-        group_mapping[group_name].append(feature_name)
-
-    return [
-        GroupFeatureMappingData(group_name=group_name, feature_list=features)
-        for group_name, features in group_mapping.items()
-    ]
-
-# def get_group_data(main_data: pd.DataFrame, 
-#                   grouping_data: pd.DataFrame, 
-#                   group: str) -> Tuple[pd.DataFrame, pd.Series]:
-#     """
-#     Extract features and labels for a specific group.
-
-#     Args:
-#         main_data: DataFrame containing all features and labels
-#         grouping_data: DataFrame containing feature-group mappings
-#         group: Name of the group to extract
-
-#     Returns:
-#         Tuple of (features DataFrame, labels Series) for the specified group
-#     """
-#     # Filter the grouping data for the specified group
-#     group_features = grouping_data[grouping_data[GROUP_COLUMN_NAME] == group][GENE_COLUMN_NAME]
+    Data structure representing the mapping between a group and its features.
     
-#     # Select the relevant features from the main data
-#     features = main_data[group_features].copy()
-#     labels = main_data[LABEL_COLUMN_NAME]  # Assuming 'label' is the column name for labels
+    Attributes:
+        group_name: Unique identifier for the group
+        feature_list: List of features belonging to this group
+    """
+    group_name: str
+    feature_list: List[str] = field(default_factory=list)
 
-#     return features, labels 
+
+def create_group_feature_mapping(
+    grouping_data: pd.DataFrame,
+    logger: Optional[logging.Logger] = None
+) -> List[GroupFeatureMappingData]:
+    """
+    Create mappings between groups and their constituent features.
+    
+    Args:
+        grouping_data: DataFrame with at least two columns - one for group names 
+                      and one for feature/gene names
+        logger: Optional logger for progress tracking
+    
+    Returns:
+        List of GroupFeatureMappingData objects representing group-feature mappings
+    
+    Example:
+        >>> data = pd.DataFrame({
+        >>>     'diseaseName': ['Cancer', 'Cancer', 'Diabetes'],
+        >>>     'geneSymbol': ['BRCA1', 'TP53', 'INS']
+        >>> })
+        >>> mappings = create_group_feature_mapping(data)
+        >>> print(f"Cancer group has {len(mappings[0].feature_list)} genes")
+    """
+    if logger:
+        logger.info("🔄 Creating group-feature mappings...")
+    
+    # Validate input data
+    if grouping_data.empty:
+        if logger:
+            logger.error("❌ Empty grouping data provided")
+        return []
+    
+    # Check if required columns exist
+    required_columns = [GROUP_COLUMN_NAME, GENE_COLUMN_NAME]
+    for column in required_columns:
+        if column not in grouping_data.columns:
+            if logger:
+                logger.error(f"❌ Required column '{column}' not found in grouping data")
+            return []
+    
+    # Create dictionary to store group-feature mappings
+    group_mappings = {}
+    
+    # Process each row in the grouping data
+    for _, row in grouping_data.iterrows():
+        group_name = str(row[GROUP_COLUMN_NAME])
+        feature_name = str(row[GENE_COLUMN_NAME])
+        
+        # Skip if either is empty
+        if not group_name or not feature_name:
+            continue
+        
+        # Create new group if it doesn't exist
+        if group_name not in group_mappings:
+            group_mappings[group_name] = GroupFeatureMappingData(group_name=group_name)
+        
+        # Add feature to the group
+        group_mappings[group_name].feature_list.append(feature_name)
+    
+    # Convert dictionary to list
+    result = list(group_mappings.values())
+    
+    if logger:
+        logger.info(f"✅ Created {len(result)} group-feature mappings")
+        
+        # Log some statistics for the top 5 largest groups
+        if result:
+            sorted_groups = sorted(result, key=lambda g: len(g.feature_list), reverse=True)
+            logger.info("📊 Top 5 largest groups:")
+            for i, group in enumerate(sorted_groups[:5], 1):
+                logger.info(f"  {i}. {group.group_name}: {len(group.feature_list)} features")
+    
+    return result

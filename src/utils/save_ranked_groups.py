@@ -10,6 +10,8 @@ import pandas as pd
 import logging
 from pathlib import Path
 
+from sklearn.metrics import f1_score
+
 from scoring.metrics import MetricsData
 
 
@@ -35,12 +37,13 @@ def save_ranked_groups(
         df = pd.DataFrame({
             'Group Name': [m.name for m in group_list],
             'Accuracy': [m.accuracy for m in group_list],
-            'Iteration': [iteration] * len(group_list)
+            'F1 Score': [m.f1 for m in group_list],
+            'Iteration': [iteration] * len(group_list),
         })
         
         df = df.sort_values('Accuracy', ascending=False)
         df['Rank'] = range(1, len(df) + 1)
-        df = df[['Rank', 'Group Name', 'Accuracy', 'Iteration']]
+        df = df[['Rank', 'Group Name', 'Accuracy', 'F1 Score', 'Iteration']]
         
         output_dir = Path(output_path).parent
         output_dir.mkdir(parents=True, exist_ok=True)

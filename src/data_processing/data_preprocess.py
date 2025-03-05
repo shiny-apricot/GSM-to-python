@@ -179,7 +179,7 @@ def sample_by_ratio(data: pd.DataFrame, ratio: float = 0.5) -> pd.DataFrame:
 
 def preprocess_grouping_data(grouping_data: pd.DataFrame, logger: Any) -> pd.DataFrame:
     """
-    Preprocesses gene grouping data.
+    Preprocesses gene grouping data by validating its structure.
     
     Parameters:
         grouping_data (pd.DataFrame): Raw grouping data

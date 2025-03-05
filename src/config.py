@@ -22,18 +22,27 @@ from pathlib import Path
 # Input/Output Configuration
 # ============================================================================
 
-# Get the project directory. This assumes the config file is in the 'src' directory.
+# Get the project directory. This assumes the config.py file is in the 'src' directory.
 project_dir = Path(__file__).resolve().parents[1]
 
-INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
+### TEST DATA ###
+# INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
+# INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
+# # Group Settings
+# GROUP_COLUMN_NAME = "diseaseName"
+# GENE_COLUMN_NAME = "geneSymbol"
+
+### EXAMPLE DATA ###
+INPUT_EXPRESSION_DATA = "data/main_data/GDS2545.csv"
+INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
+GROUP_COLUMN_NAME = "group_name"
+GENE_COLUMN_NAME = "feature_id"
+
 # INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
-INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
-# INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
+
 OUTPUT_DIR = project_dir / "output"
 
-# Group Settings
-GROUP_COLUMN_NAME = "diseaseName"
-GENE_COLUMN_NAME = "geneSymbol"
+
 
 # MIN_GENES_PER_GROUP = 10 #TODO: should I keep it?
 # MAX_GENES_PER_GROUP = 1000
@@ -57,7 +66,7 @@ SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', '
 
 RANDOM_SEED = 44
 CROSS_VALIDATION_FOLDS = 5
-NUMBER_OF_ITERATIONS = 3
+NUMBER_OF_ITERATIONS = 1
 SAVE_INTERMEDIATE_RESULTS = True
 
 # ============================================================================
@@ -67,7 +76,7 @@ SAVE_INTERMEDIATE_RESULTS = True
 # Supported model types
 ModelType = Literal['DecisionTree', 'RandomForest', 'SVM', 'KNN', 'MLP']
 
-MODEL_NAME:ModelType = 'RandomForest'
+MODEL_NAME : ModelType = 'RandomForest'
 
 HYPERPARAMETERS = {
     'RandomForest': {

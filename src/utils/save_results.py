@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from dataclasses import asdict, dataclass
 import json
+import shutil  # Added for file copying
 
 from modeling.run_modeling import ModelingResult
 
@@ -41,12 +42,11 @@ def create_modeling_statistics_all_iterations_df(results: List[List[ModelingResu
             stats_data.append({
                 'Iteration': iteration_idx + 1,
                 'Group Count': len(result_group) - group_idx,
-                'Feature Count': len(result.features),
-                'Accuracy': result.metrics.accuracy,
-                'Precision': result.metrics.precision,
-                'Recall': result.metrics.recall,
-                # 'F1 Score': result.metrics.f1_score,
-                # 'AUC': result.metrics.auc
+                'Feature Count': result.num_features_used,
+                'Accuracy': result.accuracy,
+                'Precision': result.precision,
+                'Recall': result.recall,
+                'F1 Score': result.f1_score,
             })
     
     return pd.DataFrame(stats_data)
@@ -70,12 +70,14 @@ def create_modeling_statistics_averaged_df(results: List[List[ModelingResult]]) 
                 stats_by_group_count[group_count] = []
             
             stats_by_group_count[group_count].append({
-                'Feature Count': len(result.features),
-                'Accuracy': result.metrics.accuracy,
-                'Precision': result.metrics.precision,
-                'Recall': result.metrics.recall,
-                # 'F1 Score': result.metrics.f1_score,
-                # 'AUC': result.metrics.auc
+                'Feature Count': result.num_features_used,
+                'Accuracy': result.accuracy,
+                'Precision': result.precision,
+                'Recall': result.recall,
+                'F1 Score': result.f1_score,
+                'Training Time': result.training_time,
+                # TODO: add auc support for results
+                # 'AUC' : result.auc
             })
     
     # Calculate averages for each group count
@@ -87,12 +89,12 @@ def create_modeling_statistics_averaged_df(results: List[List[ModelingResult]]) 
             'Accuracy': sum(s['Accuracy'] for s in stats_list) / len(stats_list),
             'Precision': sum(s['Precision'] for s in stats_list) / len(stats_list),
             'Recall': sum(s['Recall'] for s in stats_list) / len(stats_list),
-            # 'F1 Score': sum(s['F1 Score'] for s in stats_list) / len(stats_list),
+            'F1 Score': sum(s['F1 Score'] for s in stats_list) / len(stats_list),
             # 'AUC': sum(s['AUC'] for s in stats_list) / len(stats_list),
             'Std Accuracy': np.std([s['Accuracy'] for s in stats_list]),
             'Std Precision': np.std([s['Precision'] for s in stats_list]),
             'Std Recall': np.std([s['Recall'] for s in stats_list]),
-            # 'Std F1 Score': np.std([s['F1 Score'] for s in stats_list]),
+            'Std F1 Score': np.std([s['F1 Score'] for s in stats_list]),
             # 'Std AUC': np.std([s['AUC'] for s in stats_list])
         }
         averaged_stats.append(avg_stats)
@@ -105,7 +107,17 @@ def adjust_column_width(worksheet):
     """Adjust column widths to fit content."""
     for column in worksheet.columns:
         max_length = 0
-        column_letter = column[0].column_letter
+        column_letter = None
+        
+        # Get column letter safely, handling MergedCell objects
+        for cell in column:
+            if hasattr(cell, 'column_letter'):
+                column_letter = cell.column_letter
+                break
+        
+        if column_letter is None:
+            continue  # Skip if we couldn't find a column letter
+            
         for cell in column:
             try:
                 if len(str(cell.value)) > max_length:
@@ -114,6 +126,28 @@ def adjust_column_width(worksheet):
                 pass
         adjusted_width = (max_length + 2) * 1.2
         worksheet.column_dimensions[column_letter].width = adjusted_width
+
+def save_config_file(output_dir: Path, logger: logging.Logger) -> None:
+    """
+    Copy the config.py file to the results directory for reproducibility.
+    
+    Args:
+        output_dir: Directory where results are saved
+        logger: Logger instance
+    """
+    try:
+        # Get the path to config.py (assumed to be two levels up from this file)
+        config_path = Path(__file__).resolve().parents[1] / "config.py"
+        
+        if not config_path.exists():
+            logger.warning(f"⚠️ Config file not found at {config_path}")
+            return
+            
+        # Copy the file to the output directory
+        shutil.copy(config_path, output_dir / "config.txt")
+        logger.info(f"📄 Copied config.py to results directory: {output_dir}")
+    except Exception as e:
+        logger.error(f"❌ Failed to copy config file: {str(e)}")
 
 def save_modeling_results(
     results: List[List[ModelingResult]],
@@ -135,6 +169,9 @@ def save_modeling_results(
     output_path = Path(output_dir)
     setup_save_directory(output_path, logger)
     
+    # Save the config file to the results directory for reproducibility
+    save_config_file(output_path, logger)
+    
     try:
         # Save detailed results
         for iteration_idx, result_group in enumerate(results):
@@ -153,9 +190,9 @@ def save_modeling_results(
             for idx, result in enumerate(result_group):
                 group_key = f"group_count_{len(result_group)-idx}"
                 results_dict['results'][group_key] = {
-                    'metrics': asdict(result.metrics),
-                    'groups': result.groups,
-                    'features': result.features
+                    'ModelingResult': asdict(result),
+                    # 'groups': result.groups,
+                    # 'features': result.features
                 }
             
             # Save to JSON file using json module instead of pandas

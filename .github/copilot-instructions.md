@@ -22,6 +22,8 @@ Each stage processes gene data sequentially, transforming raw input into actiona
 - Prefer pure functions over classes
 - Use dataclasses for ALL data structures
 - NEVER use dictionaries, tuples, or named tuples - always use dataclasses instead
+- Do not create additonal file for dataclasses, define them in the same file where they are used
+- If a function returns multiple values, use a dataclass to encapsulate them.
 
 Example of top-down hierarchy:
 ```python

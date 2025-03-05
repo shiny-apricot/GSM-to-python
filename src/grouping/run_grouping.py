@@ -19,13 +19,11 @@ import logging
 from typing import List
 import pandas as pd
 
-from .grouping_utils import create_group_feature_mapping
-from .group_feature_mapping import GroupFeatureMappingData
+from .grouping_utils import GroupFeatureMappingData, create_group_feature_mapping
 
 
 def run_grouping(
     grouping_data: pd.DataFrame,
-    group_feature_mappings: List[GroupFeatureMappingData],
     logger: logging.Logger
 ) -> List[GroupFeatureMappingData]:
     """
@@ -42,8 +40,16 @@ def run_grouping(
     Raises:
         ValueError: If input validation fails
     """
-    logger.info("🔄 Starting grouping process...")
-    
+    logger.info(f"#" * 50)
+    logger.info(f"🔄 Starting grouping process...")
+
+    group_feature_mappings = create_group_feature_mapping(grouping_data, logger)
+        
+    # Log information about the groups
+    total_features = sum(len(group.feature_list) for group in group_feature_mappings)
+    avg_group_size = total_features / len(group_feature_mappings) if group_feature_mappings else 0
+    logger.info(f"📊 Total features in groups: {total_features}")
+    logger.info(f"📊 Average group size: {avg_group_size:.2f} features")
     try:
         validate_grouping_data(grouping_data, logger)
         
@@ -76,7 +82,7 @@ def validate_grouping_data(
     if grouping_data.empty:
         raise ValueError("❌ Grouping data is empty")
         
-    #TODO: check here
+    # TODO: check here with your specific column requirements
     # required_columns = ['feature_id', 'group_name']
     # missing_cols = [col for col in required_columns if col not in grouping_data.columns]
     # if missing_cols:
