@@ -20,7 +20,7 @@ src/
 ├── scoring/                 # Group scoring algorithms
 ├── modeling/                # ML model training
 ├── machine_learning/        # Include machine learning tools
-├── feature_selection/       # FS Tools
+├── feature_selection/       # Feature Selection Tools
 └── utils/                   # Shared utilities
 data/
 ├── grouping_data/

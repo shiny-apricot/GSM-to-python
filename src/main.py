@@ -4,7 +4,7 @@ import GSM_pipeline
 import pathlib
 from utils import logger
 
-project_folder = pathlib.Path().resolve().parent
+project_folder = pathlib.Path(__file__).resolve().parent.parent
 print(f"Project Folder: {project_folder}")
 
 # Now you can import the GSM_pipeline module
@@ -14,4 +14,4 @@ group_file = project_folder / INPUT_GROUP_DATA
 input_data = data_loader.load_input_file(input_file)
 group_data = data_loader.load_group_file(group_file)
 
-GSM_pipeline.gsm_run(input_data, group_data, logger=logger)
+GSM_pipeline.gsm_run(input_data, group_data)

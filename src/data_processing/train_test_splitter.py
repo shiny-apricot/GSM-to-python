@@ -26,9 +26,18 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from dataclasses import dataclass
-from data_processing.TrainTestValSplitData import TrainTestValSplitData
 
-    
+@dataclass
+class TrainTestValSplitData:
+    X_train: pd.DataFrame
+    X_test: pd.DataFrame
+    y_train: pd.Series
+    y_test: pd.Series
+    X_val: Optional[pd.DataFrame] = None
+    y_val: Optional[pd.Series] = None
+
+
+
 def validate_split_params(
     data: pd.DataFrame,
     target_column: str,
@@ -117,4 +126,7 @@ def split_data(
         random_state=random_state
     )
     
-    return TrainTestValSplitData(X_train=X_train, X_test=X_test, y_train=y_train, y_test=y_test)
+    return TrainTestValSplitData(X_train=X_train, 
+                                 X_test=X_test, 
+                                 y_train=y_train, 
+                                 y_test=y_test)

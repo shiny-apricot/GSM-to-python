@@ -60,7 +60,7 @@ from data_processing.data_preprocess import preprocess_data, preprocess_grouping
 from data_processing.normalization import normalize_data
 from data_processing.train_test_splitter import split_data
 from data_processing.preliminary_filtering import preliminary_ttest_filter
-from data_processing import TrainTestValSplitData
+from data_processing.train_test_splitter import TrainTestValSplitData
 from utils import save_results
 from utils.save_ranked_groups import save_ranked_groups
 from utils.logger import setup_logger  # Add this import at the top with other imports
@@ -113,7 +113,7 @@ def gsm_run(
 
     # Run the GSM pipeline
     logger.info("Start data preprocessing.")
-    data_preprocessed_train, data_preprocessed_test = preprocess_data(
+    data_preprocessed = preprocess_data(
         input_data,
         label_column,
         logger=logger,
@@ -138,7 +138,7 @@ def gsm_run(
         set_random_seed(iteration_seed, logger)
         
         modeling_result = gsm_main_loop(
-            data=data_preprocessed_train, 
+            data=data_preprocessed, 
             grouping_data=group_data_processed, 
             model_name=model_name,
             output_dir=output_folder_path,

@@ -40,7 +40,10 @@ import pandas as pd
 from data_processing.normalization import normalize_data
 from data_processing.train_test_splitter import train_test_split
 from data_processing.handle_missing_values import drop_missing_values, fill_missing_values
-from config import GENE_COLUMN_NAME, GROUP_COLUMN_NAME
+from config import (GENE_COLUMN_NAME, 
+                    GROUP_COLUMN_NAME, 
+                    MIN_CLASS_BALANCE_RATIO, 
+                    SAMPLING_METHOD)
 
 
 def validate_input_data(data: pd.DataFrame, label_column_name: str) -> None:
@@ -75,7 +78,7 @@ def preprocess_data(
     normalization_method: str = 'zscore',
     random_state: int = 42,
     # TODO: apply sample by ratio
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> pd.DataFrame:
     """
     Executes the complete data preprocessing pipeline.
     
@@ -114,15 +117,21 @@ def preprocess_data(
                                      label_column_name=label_column_name,
                                      logger=logger,
                                      method=normalization_method)
+
+    sampled_data = determine_class_balance(normalized_data, 
+                                           logger=logger,
+                                           min_class_balance_ratio=0.5,
+                                           sampling_method='undersampling')
+    logger.info(f"Sampled data size: {sampled_data.shape}")
     
     # Split data
-    train_data, test_data = train_test_split(
-        normalized_data,
-        test_size=test_size,
-        random_state=random_state
-    )
+    # train_data, test_data = train_test_split(
+    #     normalized_data,
+    #     test_size=test_size,
+    #     random_state=random_state
+    # )
     
-    return train_data, test_data
+    return sampled_data
 
 def convert_labels_to_binary(
     data: pd.DataFrame,
@@ -158,24 +167,59 @@ def convert_labels_to_binary(
     return data
 
    
-def sample_by_ratio(data: pd.DataFrame, ratio: float = 0.5) -> pd.DataFrame:
+def determine_class_balance(data: pd.DataFrame,
+                            logger: Any,
+                            min_class_balance_ratio: float = 0.5,
+                            sampling_method: str = 'undersampling') -> pd.DataFrame:
     """
-    Creates a stratified sample of the input data.
-    
+    Determines class balance in the dataset and applies sampling if necessary.
+
     Parameters:
-        data (pd.DataFrame): Input data to sample
-        ratio (float, optional): Sampling ratio. Defaults to 0.5
-    
+        data (pd.DataFrame): Input data with labels
+        label1 (str): Name of the first label column
+        label2 (str): Name of the second label column
+        logger (Any): Logger instance
+        min_class_balance_ratio (float): Minimum acceptable ratio between minority and majority classes
+            (0.5 means classes can be at most 1:2)
+        sampling_method (str): Method for balancing classes ('undersampling', 'oversampling')
     Returns:
-        pd.DataFrame: Sampled data
-    
-    Raises:
-        ValueError: If ratio is not between 0 and 1
+        pd.DataFrame: Data with balanced classes
     """
-    if not 0 < ratio < 1:
-        raise ValueError("Sampling ratio must be between 0 and 1")
-    sample_size = int(len(data) * ratio)
-    return data.sample(sample_size)
+    negative_class = "0"
+    positive_class = "1"
+    class_label = 'class'
+
+    # Count occurrences of each class
+    class_counts = data[class_label].value_counts()
+    logger.info(f"Class counts: {class_counts}")
+    
+    # Check if classes are balanced
+    if class_counts.min() / class_counts.max() < 0.5:
+        # Apply sampling method to balance classes
+        if sampling_method == 'undersampling':
+            # Find the majority class (the class with the most samples)
+            majority_class = class_counts.idxmax()
+            # Keep only rows where the label matches the majority class
+            # This filters the DataFrame to retain only the majority class samples
+            data = data[data[class_label] == majority_class]
+        elif sampling_method == 'oversampling':
+            # Find the minority class (the class with the fewest samples)
+            minority_class = class_counts.idxmin()
+            # Create copies of the minority class data and append them to balance the classes
+            # This duplicates minority class samples until they roughly match the majority class
+            data = pd.concat([data, data[data[class_label] == minority_class].copy()] * (class_counts.max() // class_counts.min()))
+        else:
+            raise ValueError(f"Unsupported sampling method: {sampling_method}")
+    else:
+        logger.info("Classes are balanced, no sampling applied")
+    logger.info(f"Balanced class counts: {data[class_label].value_counts()}")
+    # Check if the class balance ratio is acceptable
+    ratio = data[class_label].value_counts().min() / data[class_label].value_counts().max()
+    if ratio < min_class_balance_ratio:
+        logger.warning(f"Class balance ratio {ratio} is below the minimum threshold {min_class_balance_ratio}")
+    else:
+        logger.info(f"Class balance ratio {ratio} is acceptable")
+    return data
 
 def preprocess_grouping_data(grouping_data: pd.DataFrame, logger: Any) -> pd.DataFrame:
     """

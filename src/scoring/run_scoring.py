@@ -38,6 +38,7 @@ def run_scoring(
     logger
 ) -> ScoringResults:
     """
+    # TODO: Parallelize the scoring process for groups
     Run the complete scoring pipeline for both groups and features.
     
     Args:
@@ -82,7 +83,8 @@ def run_scoring(
                 elif feature.lower() in feature_map:
                     available_features.append(feature_map[feature.lower()])
             
-            logger.info(f"🔍 Scoring group: {current_group.group_name}... Found {len(available_features)} valid features for scoring")
+            # logger.info(f"🔍 Scoring group: {current_group.group_name}... Found {len(available_features)} valid features for scoring")
+            # this log takes too much space in the log file...
             
             if not available_features:
                 logger.warning(f"⚠️ Skipping group with no valid features: {current_group.group_name}")

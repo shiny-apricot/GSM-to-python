@@ -1,2 +1,12 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+tqdm
+
 statsmodels
 openpyxl
+
+# Machine learning
+xgboost

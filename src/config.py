@@ -13,6 +13,7 @@ Key Configuration Sections:
 - Data Processing: Data normalization and sampling parameters
 - Performance: Execution settings like parallelization
 """
+# TODO: Should I keep config file as .py or convert to .yaml?
 
 from typing import Literal
 from dataclasses import dataclass
@@ -25,20 +26,23 @@ from pathlib import Path
 # Get the project directory. This assumes the config.py file is in the 'src' directory.
 project_dir = Path(__file__).resolve().parents[1]
 
+NUMBER_OF_ITERATIONS = 1
+
 ### TEST DATA ###
 # INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
 # INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
 # # Group Settings
-# GROUP_COLUMN_NAME = "diseaseName"
-# GENE_COLUMN_NAME = "geneSymbol"
+GROUP_COLUMN_NAME = "diseaseName"
+GENE_COLUMN_NAME = "geneSymbol"
 
-### EXAMPLE DATA ###
+### REAL DATA ###
 INPUT_EXPRESSION_DATA = "data/main_data/GDS2545.csv"
+# INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
+
 INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
 GROUP_COLUMN_NAME = "group_name"
 GENE_COLUMN_NAME = "feature_id"
 
-# INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
 
 OUTPUT_DIR = project_dir / "output"
 
@@ -56,7 +60,8 @@ NORMALIZATION_METHOD = 'zscore'  # Options: 'minmax', 'zscore', 'robust'
 TRAIN_TEST_SPLIT_RATIO = 0.7
 CLASS_LABELS_POSITIVE = "pos"
 CLASS_LABELS_NEGATIVE = "neg"
-MIN_CLASS_BALANCE_RATIO = 0.5
+MIN_CLASS_BALANCE_RATIO = 0.5  # Minimum acceptable ratio between minority and majority classes 
+    # (0.5 means classes can be at most 1:2)
 SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', 'hybrid'
 # TODO: implement sampling methods
 
@@ -66,7 +71,6 @@ SAMPLING_METHOD = 'undersampling'  # Options: 'undersampling', 'oversampling', '
 
 RANDOM_SEED = 44
 CROSS_VALIDATION_FOLDS = 5
-NUMBER_OF_ITERATIONS = 1
 SAVE_INTERMEDIATE_RESULTS = True
 
 # ============================================================================
@@ -78,18 +82,6 @@ ModelType = Literal['DecisionTree', 'RandomForest', 'SVM', 'KNN', 'MLP']
 
 MODEL_NAME : ModelType = 'RandomForest'
 
-HYPERPARAMETERS = {
-    'RandomForest': {
-        'n_estimators': 100,
-        'max_depth': None,
-        'min_samples_split': 2,
-    },
-    'SVM': {
-        'kernel': 'rbf',
-        'C': 1.0,
-    },
-    # Add configurations for other model types as needed
-}
 
 # ============================================================================
 # Feature Selection Settings
