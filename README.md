@@ -12,31 +12,6 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 5. **Model**: Train ML models on best-performing groups
 6. **Predict**: Generate predictions using trained models
 
-## Project Structure
-```
-src/
-├── filtering/               # Gene filtering logic
-├── grouping/                # Gene grouping implementation
-├── scoring/                 # Group scoring algorithms
-├── modeling/                # ML model training
-├── machine_learning/        # Include machine learning tools
-├── feature_selection/       # Feature Selection Tools
-└── utils/                   # Shared utilities
-data/
-├── grouping_data/
-├── main_data/
-├── test/                    # Test data for a fast preliminary check
-tests/                       # Python tests
-```
-
-## Dependencies
-- pandas: Data manipulation
-- numpy: Numerical operations
-- scikit-learn: Machine learning
-- matplotlib/seaborn: Visualization
-- jupyter: Development environment
-- dask: Large dataset handling
-
 ## Installation
 1. Clone the repository:
     ```sh
@@ -49,22 +24,6 @@ tests/                       # Python tests
     ```
 
 ## Usage
-### Running the Pipeline
-1. Load input data:
-    ```python
-    import pandas as pd
-    from config import INPUT_EXPRESSION_DATA, INPUT_GROUP_DATA
-    from utils.logger import setup_logger
-    from GSM_pipeline import gsm_run, GSMConfig
-
-    expression_data = pd.read_csv(INPUT_EXPRESSION_DATA)
-    group_data = pd.read_csv(INPUT_GROUP_DATA)
-    logger = setup_logger()
-
-    # Configure and run pipeline
-    config = GSMConfig(sample_ratio=0.8, n_iteration_workflow=5)
-    gsm_run(expression_data, group_data, logger, config)
-    ```
 
 ### Example Jupyter Notebook
 You can find an example Jupyter notebook in `src/main.ipynb` that demonstrates how to run the GSM pipeline step-by-step.
