@@ -39,6 +39,7 @@ def run_scoring(
 ) -> ScoringResults:
     """
     # TODO: Parallelize the scoring process for groups
+    # TODO: Inspect the function using a profiler to identify bottlenecks
     Run the complete scoring pipeline for both groups and features.
     
     Args:

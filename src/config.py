@@ -29,19 +29,19 @@ project_dir = Path(__file__).resolve().parents[1]
 NUMBER_OF_ITERATIONS = 1
 
 ### TEST DATA ###
-# INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
-# INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
+INPUT_EXPRESSION_DATA = "data/test/test_main_data.csv"
+INPUT_GROUP_DATA = "data/test/test_grouping_data.csv"
 # # Group Settings
 GROUP_COLUMN_NAME = "diseaseName"
 GENE_COLUMN_NAME = "geneSymbol"
 
 ### REAL DATA ###
-INPUT_EXPRESSION_DATA = "data/main_data/GDS2545.csv"
+# INPUT_EXPRESSION_DATA = "data/main_data/GDS2545.csv"
 # INPUT_EXPRESSION_DATA = "data/main_data/GDS1962.csv"
 
-INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
-GROUP_COLUMN_NAME = "group_name"
-GENE_COLUMN_NAME = "feature_id"
+# INPUT_GROUP_DATA = "data/grouping_data/cancer-DisGeNET.txt"
+# GROUP_COLUMN_NAME = "group_name"
+# GENE_COLUMN_NAME = "feature_id"
 
 
 OUTPUT_DIR = project_dir / "output"

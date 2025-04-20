@@ -122,7 +122,6 @@ def gsm_run(
         normalization_method=normalization_method
     )
     logger.info("Data preprocessing completed.")
-    
     group_data_processed = preprocess_grouping_data(group_data, logger=logger)
     logger.info("Grouping data preprocessing completed.")
     
@@ -210,6 +209,8 @@ def gsm_main_loop(data: pd.DataFrame,
     
     # Feature Filtering
     logger.info("🔍 Applying preliminary t-test filter...")
+
+    # TODO: Use this one !!!
     filtered_train = preliminary_ttest_filter(train_test_split_data.X_train, 
                                         train_test_split_data.y_train,
                                         logger=logger)

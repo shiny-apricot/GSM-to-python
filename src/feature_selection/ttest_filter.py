@@ -65,6 +65,7 @@ def perform_ttest(
         # Validate inputs
         unique_labels = np.unique(data.labels)
         if len(unique_labels) != 2:
+            logger.error(f"Invalid number of unique labels: {unique_labels}")
             raise ValueError(f"Expected 2 unique labels, got {len(unique_labels)}: {unique_labels}")
 
         # Split data into groups

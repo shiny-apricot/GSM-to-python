@@ -77,7 +77,6 @@ def preprocess_data(
     test_size: float = 0.2,
     normalization_method: str = 'zscore',
     random_state: int = 42,
-    # TODO: apply sample by ratio
 ) -> pd.DataFrame:
     """
     Executes the complete data preprocessing pipeline.
@@ -117,7 +116,6 @@ def preprocess_data(
                                      label_column_name=label_column_name,
                                      logger=logger,
                                      method=normalization_method)
-
     sampled_data = determine_class_balance(normalized_data, 
                                            logger=logger,
                                            min_class_balance_ratio=0.5,
@@ -130,6 +128,11 @@ def preprocess_data(
     #     test_size=test_size,
     #     random_state=random_state
     # )
+    
+    # Give a snapshot of the data
+    logger.info(f"Data shape: {sampled_data.shape}")
+    logger.info(f"Data columns: {sampled_data.columns.tolist()}")
+    logger.info(f"Data head:\n{sampled_data.head()}")
     
     return sampled_data
 
@@ -197,11 +200,20 @@ def determine_class_balance(data: pd.DataFrame,
     if class_counts.min() / class_counts.max() < 0.5:
         # Apply sampling method to balance classes
         if sampling_method == 'undersampling':
-            # Find the majority class (the class with the most samples)
+            # Find the minority and majority classes
+            minority_class = class_counts.idxmin()
             majority_class = class_counts.idxmax()
-            # Keep only rows where the label matches the majority class
-            # This filters the DataFrame to retain only the majority class samples
-            data = data[data[class_label] == majority_class]
+            
+            # Get all samples from the minority class
+            minority_samples = data[data[class_label] == minority_class]
+            
+            # Randomly sample from the majority class to match minority class count
+            majority_samples = data[data[class_label] == majority_class].sample(
+                n=class_counts.min(),
+            )
+            
+            # Combine minority and sampled majority classes
+            data = pd.concat([minority_samples, majority_samples])
         elif sampling_method == 'oversampling':
             # Find the minority class (the class with the fewest samples)
             minority_class = class_counts.idxmin()
@@ -245,6 +257,11 @@ def preprocess_grouping_data(grouping_data: pd.DataFrame, logger: Any) -> pd.Dat
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
 
+        # Give a snapshot of the data
+        logger.info(f"Grouping data shape: {grouping_data.shape}")
+        logger.info(f"Grouping data columns: {grouping_data.columns.tolist()}")
+        logger.info(f"Grouping data head:\n{grouping_data.head()}")
+        
         return grouping_data
 
     except Exception as e:
