@@ -1,7 +1,7 @@
 # G-S-M Bioinformatics Data Pipeline Project
 
 ## Purpose
-Implementation of Grouping-Scoring-Modeling (GSM) pipeline for gene analysis.
+Implementation of Grouping-Scoring-Modeling (GSM) pipeline for gene analysis. This pipeline helps researchers analyze gene expression data to identify meaningful patterns and make predictions.
 
 ## Project Overview
 This project implements a modular data pipeline for bioinformatics analysis using the GSM approach:
@@ -12,21 +12,59 @@ This project implements a modular data pipeline for bioinformatics analysis usin
 5. **Model**: Train ML models on best-performing groups
 6. **Predict**: Generate predictions using trained models
 
-## Installation
-1. Clone the repository:
+## Getting Started
+
+### Setting Up Your Environment
+1. **Clone the repository**:
     ```sh
     git clone https://github.com/shiny-apricot/GSM-to-python.git
     cd GSM-to-python
     ```
-2. Install the required dependencies:
+
+2. **Create a virtual environment**:
+   
+   Using venv (Python's built-in virtual environment):
+    ```sh
+    # Create a virtual environment named 'venv'
+    python -m venv venv
+    
+    # Activate the virtual environment
+    # On Windows:
+    venv\Scripts\activate
+    
+    # On macOS and Linux:
+    source venv/bin/activate
+    ```
+
+   Using conda (if you prefer Anaconda/Miniconda):
+    ```sh
+    # Create a conda environment
+    conda create -n gsm-env python=3.8
+    
+    # Activate the conda environment
+    conda activate gsm-env
+    ```
+
+3. **Install the required dependencies**:
     ```sh
     pip install -r dependencies.txt
     ```
-
 ## Usage
 
-### Example Jupyter Notebook
-You can find an example Jupyter notebook in `src/main.ipynb` that demonstrates how to run the GSM pipeline step-by-step.
+### Running from Command Line
+1. **Activate your virtual environment** (if not already active):
+    ```sh
+    # Windows
+    venv\Scripts\activate
+    
+    # macOS and Linux
+    source venv/bin/activate
+    ```
+
+2. **Run the pipeline**:
+    ```sh
+    python3 src/main.py
+    ```
 
 ## Documentation
 - Maintain comprehensive docstrings
@@ -38,6 +76,17 @@ You can find an example Jupyter notebook in `src/main.ipynb` that demonstrates h
   - List of key functions/classes with brief descriptions
   - Usage examples where appropriate
   - Any important notes or caveats
+
+## Troubleshooting
+
+### Common Issues
+1. **ImportError or ModuleNotFoundError**:
+   - Verify your virtual environment is activated
+   - Reinstall dependencies: `pip install -r dependencies.txt`
+
+2. **Permission denied errors**:
+   - Check file permissions: `chmod +x src/run_pipeline.py`
+
 
 ## Contributing
 1. Create a new branch (`git checkout -b feature-branch`)
